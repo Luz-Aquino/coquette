@@ -847,3 +847,10 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 body.bloqueado .whatsapp { z-index: 0; }
 .link-wa { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 14px; font-weight: 500; color: #1D9E4F; text-underline-offset: 3px; }
 .link-wa[hidden] { display: none; }
+
+/* Arreglo: que la fila de relacionados no ensanche la ficha */
+@media (min-width: 860px) {
+  .ficha { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+}
+.ficha-info, .relacionados { min-width: 0; }
+.hoja-contenido { overflow-x: hidden; }
