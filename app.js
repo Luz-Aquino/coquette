@@ -123,8 +123,21 @@
   function pintarPerchero() {
     const el = $('#perchero');
     const elegidos = st.productos.filter(p => p.imagenes.length).slice(0, 14);
-    const prenda = (p, i, copia) => `<a class="prenda" href="#p-${esc(p.id)}" style="--tono:${TONOS[i % TONOS.length]}" ${copia ? 'aria-hidden="true" tabindex="-1"' : ''}>
-        <span class="arco"><img src="${esc(p.imagenes[0])}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
+    // Percha dorada (gancho + hombros) y moño de satén, dibujados en SVG
+    const PERCHA = '<svg class="percha" viewBox="0 0 200 74" aria-hidden="true"><defs><linearGradient id="oroPercha" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E3B8"/><stop offset=".5" stop-color="#C9A36A"/><stop offset="1" stop-color="#9C7A45"/></linearGradient></defs>'
+      + '<path d="M100 2c-9 0-13 7-10.5 12.5C92 20 100 21 100 30" fill="none" stroke="url(#oroPercha)" stroke-width="4" stroke-linecap="round"/>'
+      + '<path d="M100 31L13 63q-7 3-3 7h180q4-4-3-7z" fill="none" stroke="url(#oroPercha)" stroke-width="4.5" stroke-linejoin="round"/></svg>';
+    const MONO = '<svg class="mono" viewBox="0 0 64 44" aria-hidden="true">'
+      + '<path class="mono-cinta" d="M29 22L17 42l6-1 3 3 5-17zM35 22l12 20-6-1-3 3-5-17z"/>'
+      + '<path class="mono-lazo" d="M30 19C19 4 3 6 5 19c1.5 10 16 9 25 4zM34 19C45 4 61 6 59 19c-1.5 10-16 9-25 4z"/>'
+      + '<path class="mono-brillo" d="M10 15c4-5 11-5 16 0M38 15c5-5 12-5 16 0" fill="none"/>'
+      + '<rect class="mono-nudo" x="27" y="15" width="10" height="11" rx="4"/></svg>';
+    const prenda = (p, i, copia) => `<a class="prenda" href="#p-${esc(p.id)}" style="--tono:${TONOS[i % TONOS.length]};--d:${(i % 5) * 0.12}s" ${copia ? 'aria-hidden="true" tabindex="-1"' : ''}>
+        <span class="prenda-colgada">
+          ${PERCHA}${MONO}
+          <span class="arco"><img src="${esc(p.imagenes[0])}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
+          <span class="etiqueta-precio"><small>${p._res.soloPack ? 'pack x6' : 'desde'}</small>${fmt(p._res.desde)}</span>
+        </span>
         <span class="prenda-nombre">${esc(p._nombre)}</span></a>`;
     // Se repite la tira para que el carrusel gire sin fin
     el.innerHTML = elegidos.map((p, i) => prenda(p, i, false)).join('') + elegidos.map((p, i) => prenda(p, i, true)).join('');
