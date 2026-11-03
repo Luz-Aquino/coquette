@@ -449,3 +449,64 @@ body.cursor-magico input, body.cursor-magico textarea { cursor: text; }
   100% { transform: translate(var(--dx), var(--dy)) scale(1) rotate(90deg); opacity: 0; }
 }
 .prenda .arco { margin-top: 0; font-size: inherit; color: inherit; }
+
+/* ---------- Firma "Coquette" en cursiva que se escribe sola ---------- */
+@font-face {
+  font-family: "Pinyon Script";
+  src: url("fonts/pinyon-script.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: block;
+}
+:root { --firma: "Pinyon Script", "Snell Roundhand", "Apple Chancery", cursive; }
+.marca, .pie-marca { font-family: var(--firma); font-style: normal; font-weight: 400; }
+.marca { font-size: 34px; }
+.pie-marca { font-size: 52px; }
+
+.portada { display: block; text-align: center; }
+.portada-marca {
+  font-family: var(--firma); font-style: normal; font-weight: 400;
+  font-size: clamp(92px, 23vw, 270px); line-height: 1.15;
+  letter-spacing: 0; margin: 0 auto; padding: .04em 0 .12em;
+  display: flex; justify-content: center; align-items: baseline; flex-wrap: nowrap;
+}
+.firma-caja { position: relative; display: inline-block; padding: 0 .08em; }
+.firma {
+  display: inline-block;
+  /* empieza tapada y se destapa de izquierda a derecha, como escrita a mano */
+  clip-path: inset(-30% 100% -45% -6%);
+}
+.portada-marca small { opacity: 0; transform: translateY(.2em); }
+.pluma {
+  position: absolute; left: 0; top: 46%; width: .14em; height: .14em; margin: -.07em 0 0 -.07em;
+  border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, #fff 0 25%, #FFE3EA 45%, rgba(242,196,109,.6) 70%, transparent 72%);
+  box-shadow: 0 0 .12em .05em rgba(247,183,198,.9), 0 0 .3em .1em rgba(242,196,109,.45);
+}
+.portada.escribe .firma { animation: escribir 2.8s cubic-bezier(.55,.1,.35,1) .15s forwards; }
+.portada.escribe .pluma { animation: pluma 2.8s cubic-bezier(.55,.1,.35,1) .15s forwards; }
+.portada.escribe .portada-marca small { animation: aparece .7s ease 2.7s forwards; }
+.portada.escrito .firma { clip-path: none; }
+.portada.escrito .portada-marca small { opacity: 1; transform: none; }
+@keyframes escribir {
+  0%   { clip-path: inset(-30% 100% -45% -6%); }
+  100% { clip-path: inset(-30% -6% -45% -6%); }
+}
+@keyframes pluma {
+  0%   { left: 2%;  top: 58%; opacity: 0; }
+  6%   { opacity: 1; }
+  18%  { top: 34%; }
+  32%  { top: 62%; }
+  46%  { top: 40%; }
+  60%  { top: 60%; }
+  74%  { top: 30%; }
+  88%  { top: 55%; opacity: 1; }
+  100% { left: 99%; top: 48%; opacity: 0; }
+}
+@keyframes aparece { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .firma { clip-path: none; }
+  .portada-marca small { opacity: 1; transform: none; }
+  .pluma { display: none; }
+}
+@media (min-width: 900px) {
+  .portada { display: block; }
+}

@@ -774,7 +774,32 @@
 
   if (DEMO) document.body.insertAdjacentHTML('afterbegin', '<div class="demo-banda">Modo demostración: productos de ejemplo, los pagos no son reales.</div>');
 
+  /* ---------- Firma que se escribe al entrar al inicio ---------- */
+  function escribirFirma() {
+    const portada = $('.portada');
+    if (!portada) return;
+    portada.classList.remove('escribe', 'escrito');
+    const arrancar = () => {
+      void portada.offsetWidth; // reinicia la animación
+      portada.classList.add('escribe');
+      setTimeout(() => { portada.classList.add('escrito'); portada.classList.remove('escribe'); }, 3600);
+    };
+    const fuente = document.fonts && document.fonts.load ? document.fonts.load('400 1em "Pinyon Script"') : Promise.resolve();
+    Promise.race([fuente, new Promise(r => setTimeout(r, 1500))]).then(arrancar, arrancar);
+  }
+  // Volver al inicio (logo o "volver") vuelve a escribir la firma, sin recargar
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a.marca');
+    if (!a || a.closest('dialog')) return;
+    e.preventDefault();
+    $$('dialog').forEach(d => d.open && d.close());
+    scrollTo({ top: 0, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    setTimeout(escribirFirma, 250);
+  });
+  window.addEventListener('pageshow', e => { if (e.persisted) escribirFirma(); });
+
   /* ---------- Inicio ---------- */
+  escribirFirma();
   guardarCarrito();
   iniciarBrillo();
   iniciarGoogle();
