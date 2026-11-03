@@ -719,3 +719,60 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .prenda:hover .arco { transform: none; }
   .prenda:hover .prenda-colgada { transform: rotate(1.6deg); }
 }
+
+/* ---------- Cinta de beneficios (se desliza) ---------- */
+.cinta {
+  display: flex; overflow: hidden; white-space: nowrap;
+  background: linear-gradient(90deg, #7A1F3D, #9B3456 50%, #7A1F3D);
+  color: #FFF4E8; font: 500 13px/1 var(--sans); letter-spacing: .04em;
+  padding: 9px 0; border-bottom: 1px solid #C9A36A;
+}
+.cinta-pista { display: flex; flex: 0 0 auto; align-items: center; animation: cinta 38s linear infinite; }
+.cinta-pista span { padding: 0 22px; }
+.cinta-pista i { font-style: normal; color: #E6C88E; font-size: 11px; }
+@keyframes cinta { to { transform: translateX(-100%); } }
+.cinta:hover .cinta-pista { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .cinta-pista { animation: none; } }
+
+/* ---------- Portada con luz rosada suave ---------- */
+.portada { position: relative; isolation: isolate; }
+.portada::before {
+  content: ""; position: absolute; z-index: -1; inset: -40px calc(50% - 50vw) auto; height: 420px; pointer-events: none;
+  background:
+    radial-gradient(38% 60% at 22% 40%, rgba(244,199,210,.55), transparent 70%),
+    radial-gradient(34% 55% at 80% 30%, rgba(247,213,188,.45), transparent 70%),
+    radial-gradient(30% 50% at 55% 75%, rgba(220,207,238,.40), transparent 70%);
+  filter: blur(8px);
+  animation: aura 14s ease-in-out infinite alternate;
+}
+@keyframes aura { to { transform: translate3d(0, 10px, 0) scale(1.04); opacity: .85; } }
+/* borde festoneado entre la portada y el carrusel */
+.perchero { overflow: visible; }
+.perchero::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -11px; height: 12px;
+  background: radial-gradient(circle at 12px 12px, #FBEBED 11px, transparent 11.5px) 0 0 / 24px 12px repeat-x;
+}
+.perchero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -11px; height: 12px;
+  background: radial-gradient(circle at 12px 0, #FFF7F6 11px, transparent 11.5px) 0 0 / 24px 12px repeat-x;
+}
+
+/* ---------- Título de la colección ---------- */
+.titulo-seccion { margin: 6px 0 18px; text-align: center; font: 400 clamp(38px, 6vw, 56px)/1.1 var(--firma); color: var(--bordo); }
+.titulo-seccion span { position: relative; display: inline-block; padding: 0 clamp(46px, 8vw, 90px); }
+.titulo-seccion span::before, .titulo-seccion span::after {
+  content: ""; position: absolute; top: 55%; width: clamp(34px, 6.5vw, 74px); height: 1px;
+  background: linear-gradient(90deg, transparent, #C9A36A);
+}
+.titulo-seccion span::before { left: 0; }
+.titulo-seccion span::after { right: 0; transform: scaleX(-1); }
+.titulo-seccion + .categorias { justify-content: safe center; }
+
+/* ---------- Tarjetas del catálogo con marco ---------- */
+.tarjeta { display: block; padding: 8px 8px 12px; border-radius: 16px; background: #fff; box-shadow: 0 10px 24px -18px rgba(92,18,41,.45); transition: transform .35s cubic-bezier(.2,.7,.3,1), box-shadow .35s; }
+.tarjeta-foto { border-radius: 11px; }
+.tarjeta-nombre, .tarjeta-precio, .tarjeta-pack, .tarjeta-colores { padding: 0 4px; }
+.tarjeta-precio { color: var(--bordo); }
+@media (hover: hover) {
+  .tarjeta:hover { transform: translateY(-5px); box-shadow: 0 22px 34px -20px rgba(92,18,41,.55), 0 0 0 1px #F1D3DA; }
+}
