@@ -727,7 +727,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   color: #FFF4E8; font: 500 13px/1 var(--sans); letter-spacing: .04em;
   padding: 9px 0; border-bottom: 1px solid #C9A36A;
 }
-.cinta-pista { display: flex; flex: 0 0 auto; align-items: center; animation: cinta 38s linear infinite; }
+.cinta-pista { display: flex; flex: 0 0 auto; align-items: center; animation: cinta 75s linear infinite; }
 .cinta-pista span { padding: 0 22px; }
 .cinta-pista i { font-style: normal; color: #E6C88E; font-size: 11px; }
 @keyframes cinta { to { transform: translateX(-100%); } }
