@@ -2,6 +2,6 @@
 // Mientras API_URL esté vacío, la tienda funciona en "modo demostración" con productos de ejemplo.
 window.COQUET_CONFIG = {
   API_URL: 'https://script.google.com/macros/s/AKfycbxpAf2FKmJu0FpBbGN6KoljtPITXbsZ19OX9TSSCHSaha3sPOckiwKLU6Yed5q6zi_-/exec',          // URL de la app web de Apps Script (termina en /exec)
-  GOOGLE_CLIENT_ID: '', // ID de cliente OAuth de Google (termina en .apps.googleusercontent.com)
+  GOOGLE_CLIENT_ID: '468284812442-1lkcvjgo52rjcknkrf53p07t41vi69t9.apps.googleusercontent.com', // ID de cliente OAuth de Google (termina en .apps.googleusercontent.com)
   NOMBRE: 'Coquette'
 };
