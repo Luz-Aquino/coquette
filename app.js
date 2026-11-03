@@ -782,7 +782,11 @@
     const arrancar = () => {
       void portada.offsetWidth; // reinicia la animación
       portada.classList.add('escribe');
-      setTimeout(() => { portada.classList.add('escrito'); portada.classList.remove('escribe'); }, 3600);
+      setTimeout(() => {
+        portada.classList.add('escrito'); portada.classList.remove('escribe');
+        const pasada = document.getElementById('firmaPasada');
+        try { if (pasada && !matchMedia('(prefers-reduced-motion: reduce)').matches) pasada.beginElement(); } catch (_) {}
+      }, 3400);
     };
     const fuente = document.fonts && document.fonts.load ? document.fonts.load('400 1em "Pinyon Script"') : Promise.resolve();
     Promise.race([fuente, new Promise(r => setTimeout(r, 1500))]).then(arrancar, arrancar);

@@ -595,3 +595,29 @@ body.cursor-magico input, body.cursor-magico textarea { cursor: text; }
 .destello { width: .15em; height: .15em; }
 .destello.d2, .destello.d4, .destello.d8 { width: .11em; height: .11em; }
 .destello.d3, .destello.d5 { width: .19em; height: .19em; }
+
+/* ---------- Firma trazada a mano, letra por letra ---------- */
+.portada-marca { font-size: clamp(56px, 14vw, 150px); }
+.firma-svg { display: block; width: clamp(250px, 66vw, 600px); height: auto; overflow: visible; }
+.trazo {
+  fill: transparent; stroke: var(--bordo); stroke-width: 1.3;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: 1;
+}
+.portada.escribe .trazo {
+  animation: trazar .6s cubic-bezier(.5,.1,.4,1) forwards, rellenar .5s ease forwards;
+  animation-delay: calc(.2s + var(--i) * .32s), calc(.6s + var(--i) * .32s);
+}
+.portada.escrito .trazo { fill: url(#firmaBrillo); stroke: none; stroke-dashoffset: 0; animation: none; }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+@keyframes rellenar { to { fill: var(--bordo); stroke-width: .2; } }
+.portada.escribe .portada-marca small { animation: aparece .7s ease 2.9s forwards; }
+.portada-marca small { padding-bottom: .5em; align-self: flex-end; }
+@media (prefers-reduced-motion: reduce) {
+  .trazo { fill: var(--bordo); stroke: none; stroke-dashoffset: 0; animation: none !important; }
+}
+/* NFM a la altura de la línea de escritura de "Coquette" */
+.portada { --fw: clamp(250px, 66vw, 600px); }
+.firma-svg { width: var(--fw); }
+.portada-marca { align-items: flex-start; }
+.portada-marca small { align-self: flex-start; padding-bottom: 0; margin-top: calc(var(--fw) * .397 * .5); margin-left: -.05em; }
