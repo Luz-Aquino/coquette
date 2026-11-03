@@ -631,8 +631,12 @@ body.cursor-magico input, body.cursor-magico textarea { cursor: text; }
   padding: 22px 0 26px;
   background: linear-gradient(180deg, #FBEBED 0%, #FFF7F6 100%);
 }
-.perchero-barra { display: none; }
-.perchero-prendas { padding-top: 6px; gap: clamp(16px, 2.2vw, 28px); }
+.perchero-barra {
+  display: block; top: 20px; height: 9px; border-radius: 5px;
+  background: linear-gradient(180deg, #FFF4D6 0%, #E6C88E 30%, #B8935A 62%, #8C6D3C 80%, #E9D3A3 100%);
+  box-shadow: 0 8px 14px -6px rgba(92,18,41,.35), inset 0 1px 0 rgba(255,255,255,.7);
+}
+.perchero-prendas { padding-top: 34px; gap: clamp(16px, 2.2vw, 28px); }
 .prenda { width: clamp(150px, 40vw, 230px); }
 .prenda::before { content: none; }
 .prenda-colgada { display: block; }
