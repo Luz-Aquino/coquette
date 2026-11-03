@@ -664,7 +664,7 @@ body { overflow-x: clip; }
 body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 .nav-abajo {
   position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(4, 1fr);
   padding: 6px max(var(--gutter), env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));
   background: rgba(255,255,255,.96); backdrop-filter: saturate(1.4) blur(10px);
   border-top: 1px solid var(--linea);
@@ -780,3 +780,70 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 .chip.con-color { display: inline-flex; align-items: center; gap: 8px; }
 .chip.con-color i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(43,20,32,.2); flex: 0 0 auto; }
 .filtros .modal-contenido { max-height: 86dvh; overflow: auto; }
+
+/* ---------- Etiquetas Nuevo / Últimas ---------- */
+.tarjeta-foto .etiquetas { position: absolute; top: 8px; left: 8px; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.tarjeta-foto .etiquetas .etiqueta { position: static; }
+.etiqueta.nuevo { background: var(--bordo); color: #FFF4E8; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.etiqueta.ultimas { background: #FFF4E8; color: #A0452E; border: 1px solid #F0C9A8; }
+
+/* ---------- Favoritos ---------- */
+.fav {
+  position: absolute; top: 8px; right: 8px; z-index: 3; width: 38px; height: 38px; border-radius: 50%; border: 0;
+  display: grid; place-items: center; cursor: pointer;
+  background: rgba(255,255,255,.9); box-shadow: 0 3px 10px -4px rgba(92,18,41,.4);
+}
+.fav svg { width: 20px; height: 20px; fill: none; stroke: var(--bordo); stroke-width: 1.7; transition: fill .2s; }
+.fav[aria-pressed="true"] svg { fill: #D9486F; stroke: #D9486F; }
+.fav.late svg { animation: late .45s ease; }
+@keyframes late { 40% { transform: scale(1.3); } }
+.fav.en-ficha { position: static; flex: 0 0 auto; box-shadow: 0 0 0 1px var(--linea); }
+.ficha-titulo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.chip-fav[aria-pressed="false"] { color: #C23A62; }
+
+/* ---------- Guía de talles ---------- */
+.link-guia { margin-left: 10px; border: 0; background: none; padding: 0; font: 500 13px var(--sans); color: var(--bordo); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.guia-tabla { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+.guia-tabla th, .guia-tabla td { padding: 9px 6px; text-align: center; border-bottom: 1px solid var(--linea); }
+.guia-tabla th { font-weight: 600; color: var(--gris); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.guia-tabla td:first-child { font-weight: 700; color: var(--bordo); }
+.guia-nota { font-size: 13px; color: var(--gris); margin: 8px 0; }
+
+/* ---------- Zoom de fotos ---------- */
+.galeria-fotos { overflow-y: hidden; }
+.galeria-fotos img { transition: transform .25s ease; cursor: zoom-in; }
+.galeria-fotos img.zoom { transform: scale(2.2); cursor: zoom-out; position: relative; z-index: 1; }
+.galeria-fotos.con-zoom { touch-action: none; }
+.galeria-fotos > img { overflow: hidden; }
+
+/* ---------- Relacionados ---------- */
+.relacionados { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--linea); }
+.relacionados h3 { margin: 0 0 12px; font: 400 30px/1.1 var(--firma); color: var(--bordo); }
+.rel-lista { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 6px; }
+.rel-lista::-webkit-scrollbar { display: none; }
+.rel { flex: 0 0 132px; scroll-snap-align: start; text-decoration: none; color: inherit; }
+.rel img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; background: var(--rosa); box-shadow: 0 0 0 3px #fff, 0 8px 16px -12px rgba(92,18,41,.5); }
+.rel span { display: block; margin-top: 8px; font: italic 400 14px/1.2 var(--serif); }
+.rel b { display: block; margin-top: 2px; font-size: 13px; color: var(--bordo); }
+
+/* ---------- Progreso hacia el mínimo ---------- */
+.progreso-minimo { margin: 0 0 12px; }
+.progreso-texto { margin: 0 0 7px; font-size: 13px; text-align: center; color: var(--ciruela); }
+.progreso-texto b { color: var(--bordo); }
+.progreso-barra { height: 8px; border-radius: 4px; background: #F6E1E6; overflow: hidden; }
+.progreso-barra i { display: block; height: 100%; width: 0; border-radius: 4px; background: linear-gradient(90deg, #E7A1B4, #B23A5E); transition: width .5s cubic-bezier(.2,.7,.3,1); }
+.progreso-minimo.listo .progreso-barra i { background: linear-gradient(90deg, #C9A36A, #E6C88E, #C9A36A); }
+
+/* ---------- WhatsApp ---------- */
+.whatsapp {
+  position: fixed; z-index: 31; right: 16px; bottom: calc(80px + env(safe-area-inset-bottom));
+  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center;
+  background: #25D366; box-shadow: 0 10px 22px -8px rgba(0,0,0,.35);
+  transition: transform .25s;
+}
+.whatsapp[hidden] { display: none; }
+.whatsapp svg { width: 30px; height: 30px; fill: #fff; }
+.whatsapp:hover { transform: scale(1.07); }
+body.bloqueado .whatsapp { z-index: 0; }
+.link-wa { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; font-size: 14px; font-weight: 500; color: #1D9E4F; text-underline-offset: 3px; }
+.link-wa[hidden] { display: none; }

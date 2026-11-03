@@ -16,6 +16,7 @@
   const st = {
     cat: null, productos: [], porId: {}, filtro: 'todo', q: '', orden: 'reco', color: null, talle: null,
     carrito: leer('coquet_carrito', []),
+    favs: new Set(leer('coquet_favs', [])),
     sesion: null, sel: null, paso: 'carrito', enviando: false
   };
 
@@ -73,7 +74,12 @@
     st.productos = (cat.productos || []).map(p => Object.assign(p, { _nombre: nombreLindo(p.nombre), _cat: categoriaDe(p), _res: resumenProducto(p) }));
     st.porId = {};
     st.variantes = {};
-    st.productos.forEach(p => { st.porId[p.id] = p; p.variantes.forEach(v => { st.variantes[v.id] = { v, p }; }); });
+    st.productos.forEach((p, i) => {
+      st.porId[p.id] = p; p.variantes.forEach(v => { st.variantes[v.id] = { v, p }; });
+      const conStock = p.variantes.filter(v => v.stock).length;
+      p._nuevo = i < 8; // el proveedor publica lo más nuevo primero
+      p._ultimas = !p._nuevo && conStock > 0 && p.variantes.length >= 3 && conStock / p.variantes.length <= 1 / 3;
+    });
   }
 
   /* ---------- Carga del catálogo ---------- */
@@ -247,15 +253,18 @@
     const cuenta = {};
     st.productos.forEach(p => p.categorias.filter(esPrincipal).forEach(c => { cuenta[c] = (cuenta[c] || 0) + 1; }));
     const cats = Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a]);
-    if (st.filtro !== 'todo' && !cuenta[st.filtro]) st.filtro = 'todo';
+    const nFavs = st.productos.filter(p => st.favs.has(p.id)).length;
+    if (st.filtro === 'favs' ? !nFavs : (st.filtro !== 'todo' && !cuenta[st.filtro])) st.filtro = 'todo';
     $('#categorias').innerHTML = [`<button class="chip" data-cat="todo" aria-pressed="${st.filtro === 'todo'}">Todo</button>`]
+      .concat(nFavs ? [`<button class="chip chip-fav" data-cat="favs" aria-pressed="${st.filtro === 'favs'}">♡ Favoritos (${nFavs})</button>`] : [])
       .concat(cats.map(c => `<button class="chip" data-cat="${esc(c)}" aria-pressed="${st.filtro === c}">${esc(etiquetaCategoria(c))}</button>`)).join('');
   }
 
   function visibles() {
     const q = sinAcentos(st.q).trim();
     return st.productos.filter(p => {
-      if (st.filtro !== 'todo' && p.categorias.indexOf(st.filtro) < 0) return false;
+      if (st.filtro === 'favs') { if (!st.favs.has(p.id)) return false; }
+      else if (st.filtro !== 'todo' && p.categorias.indexOf(st.filtro) < 0) return false;
       if ((st.color || st.talle) && !p.variantes.some(v => v.stock && (!st.color || familiaColor(v.color) === st.color) && (!st.talle || v.talle === st.talle))) return false;
       if (!q) return true;
       const texto = sinAcentos([p.nombre, p._cat, p.categorias.join(' '), p._res.colores.join(' ')].join(' '));
@@ -276,6 +285,17 @@
     const ver = $('#filtroVer'); if (ver) ver.textContent = n === 1 ? 'Ver 1 producto' : `Ver ${n} productos`;
   }
 
+  const corazon = (p, extra) => `<button type="button" class="fav ${extra || ''}" data-fav="${esc(p.id)}" aria-pressed="${st.favs.has(p.id)}" aria-label="${st.favs.has(p.id) ? 'Quitar de favoritos' : 'Guardar en favoritos'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.6-4.6-9.2-9.4C1.7 7.5 3.9 4.3 7.3 4.3c2 0 3.6 1.1 4.7 2.7 1.1-1.6 2.7-2.7 4.7-2.7 3.4 0 5.6 3.2 4.5 6.6-1.6 4.8-9.2 9.4-9.2 9.4z"/></svg></button>`;
+  function alternarFav(id) {
+    if (st.favs.has(id)) st.favs.delete(id); else st.favs.add(id);
+    guardar('coquet_favs', [...st.favs]);
+    const on = st.favs.has(id);
+    $$(`[data-fav="${CSS.escape(id)}"]`).forEach(b => { b.setAttribute('aria-pressed', on); b.setAttribute('aria-label', on ? 'Quitar de favoritos' : 'Guardar en favoritos'); b.classList.remove('late'); void b.offsetWidth; if (on) b.classList.add('late'); });
+    pintarCategorias();
+    if (st.filtro === 'favs' || !on) pintarGrilla();
+    tostada(on ? 'Guardado en favoritos' : 'Quitado de favoritos');
+  }
+
   function tarjetaHtml(p) {
     const r = p._res;
     const fotos = p.imagenes;
@@ -285,7 +305,8 @@
       <div class="tarjeta-foto">
         ${fotos[0] ? `<img src="${esc(fotos[0])}" alt="${esc(p._nombre)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
         ${fotos[1] ? `<img class="segunda" src="${esc(fotos[1])}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
-        ${r.pack ? '<span class="etiqueta">También por pack</span>' : ''}
+        <span class="etiquetas">${p._nuevo ? '<span class="etiqueta nuevo">Nuevo</span>' : ''}${p._ultimas ? '<span class="etiqueta ultimas">Últimas unidades</span>' : ''}${r.pack ? '<span class="etiqueta">También por pack</span>' : ''}</span>
+        ${corazon(p)}
       </div>
       <h3 class="tarjeta-nombre">${esc(p._nombre)}</h3>
       <p class="tarjeta-precio">${r.soloPack ? 'Pack x6 ' : ''}${fmt(r.desde)}</p>
@@ -314,9 +335,24 @@
     $('#pFotos').innerHTML = p.imagenes.map((u, i) => `<img src="${esc(u)}" alt="${esc(p._nombre)}, foto ${i + 1}" referrerpolicy="no-referrer" ${i ? 'loading="lazy"' : ''}>`).join('');
     $('#pPuntos').innerHTML = p.imagenes.length > 1 ? p.imagenes.map((_, i) => `<button type="button" aria-label="Ver foto ${i + 1}" data-foto="${i}" ${i ? '' : 'aria-current="true"'}></button>`).join('') : '';
     $('#pFotos').scrollLeft = 0;
+    $('#pFav').innerHTML = corazon(p, 'en-ficha');
+    pintarRelacionados(p);
     pintarSeleccion();
     abrir($('#dlgProducto'));
     $('#dlgProducto .hoja-contenido').scrollTop = 0;
+  }
+
+  function pintarRelacionados(p) {
+    const misCats = p.categorias.filter(esPrincipal);
+    const conStock = x => x.id !== p.id && x.variantes.some(v => v.stock);
+    let lista = st.productos.filter(x => conStock(x) && x.categorias.some(c => misCats.indexOf(c) >= 0));
+    if (lista.length < 4) lista = lista.concat(st.productos.filter(x => conStock(x) && lista.indexOf(x) < 0));
+    lista = lista.slice(0, 8);
+    $('#pRelacionados').hidden = !lista.length;
+    $('#pRelLista').innerHTML = lista.map(x => `<a class="rel" href="#p-${esc(x.id)}">
+        <img src="${esc(x.imagenes[0] || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <span>${esc(x._nombre)}</span><b>${fmt(x._res.desde)}</b></a>`).join('');
+    $('#pRelLista').scrollLeft = 0;
   }
 
   const disponibles = (tipo, color) => st.sel.p.variantes.filter(v => v.tipo === tipo && (color == null || v.color === color));
@@ -404,6 +440,7 @@
     const c = $('#contador');
     c.hidden = n === 0;
     c.textContent = n;
+    const cn = $('#navCarritoN'); if (cn) { cn.hidden = n === 0; cn.textContent = n; }
     c.classList.remove('salta'); void c.offsetWidth; c.classList.add('salta');
     $('#btnCarrito').setAttribute('aria-label', n ? `Carrito, ${n} ${n === 1 ? 'producto' : 'productos'}` : 'Carrito');
     if ($('#dlgCarrito').open) pintarCarrito();
@@ -459,8 +496,16 @@
     const btn = $('#btnSeguir');
     const minimo = Number(CFG.MINIMO_COMPRA) || 0;
     const falta = Math.max(0, minimo - sub);
-    $('#notaMinimo').hidden = !falta;
-    if (falta) $('#notaMinimo').textContent = `La compra mínima es de ${fmt(minimo)}. Te faltan ${fmt(falta)}.`;
+    $('#notaMinimo').hidden = true;
+    const prog = $('#progresoMinimo');
+    prog.hidden = !minimo || !lineas.length;
+    if (minimo) {
+      prog.querySelector('.progreso-barra i').style.width = Math.min(100, sub / minimo * 100) + '%';
+      prog.classList.toggle('listo', !falta);
+      prog.querySelector('.progreso-texto').innerHTML = falta
+        ? `Te faltan <b>${fmt(falta)}</b> para llegar a la compra mínima de ${fmt(minimo)}`
+        : `<b>¡Listo!</b> Llegaste a la compra mínima ✦`;
+    }
     if (falta) { btn.textContent = `Mínimo de compra ${fmt(minimo)}`; btn.disabled = true; }
     else if (st.paso === 'carrito') { btn.textContent = 'Finalizar compra'; btn.disabled = false; }
     else if (!st.sesion) { btn.textContent = 'Ingresá para continuar'; btn.disabled = true; }
@@ -747,6 +792,35 @@
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-fav]'); if (!b) return;
+    e.preventDefault(); e.stopPropagation(); alternarFav(b.dataset.fav);
+  }, true);
+  $('#btnGuia').addEventListener('click', () => abrir($('#dlgGuia')));
+  $('#navCarrito').addEventListener('click', () => { $$('dialog').forEach(d => d.open && d.close()); abrirCarrito(); });
+  // Zoom de fotos: con mouse sigue al puntero; en celular, tocar para acercar
+  const fotos = $('#pFotos');
+  const hayHover = matchMedia('(hover: hover)').matches;
+  const origen = (img, e) => { const r = img.getBoundingClientRect(); img.style.transformOrigin = `${(e.clientX - r.left) / r.width * 100}% ${(e.clientY - r.top) / r.height * 100}%`; };
+  fotos.addEventListener('pointermove', e => { const img = e.target.closest('img'); if (!img) return; if (hayHover && e.pointerType === 'mouse') img.classList.add('zoom'); if (img.classList.contains('zoom')) origen(img, e); });
+  fotos.addEventListener('pointerleave', e => { if (hayHover) $$('#pFotos img.zoom').forEach(i => i.classList.remove('zoom')); });
+  fotos.addEventListener('click', e => {
+    const img = e.target.closest('img'); if (!img || (hayHover && e.pointerType === 'mouse')) return;
+    const on = !img.classList.contains('zoom'); $$('#pFotos img.zoom').forEach(i => i.classList.remove('zoom'));
+    if (on) { img.classList.add('zoom'); origen(img, e); }
+    fotos.classList.toggle('con-zoom', on);
+  });
+  // WhatsApp
+  const wa = $('#whatsapp'), numWa = String(CFG.WHATSAPP || '').replace(/\D/g, '');
+  if (numWa) {
+    wa.hidden = false;
+    wa.href = `https://wa.me/${numWa}?text=${encodeURIComponent('Hola! Quería hacer una consulta sobre la tienda Coquette')}`;
+    $('#pWhatsapp').hidden = false;
+    $('#pWhatsapp').addEventListener('click', () => {
+      const p = st.sel && st.sel.p; if (!p) return;
+      $('#pWhatsapp').href = `https://wa.me/${numWa}?text=${encodeURIComponent(`Hola! Quería consultar por ${p._nombre}: ${location.origin + location.pathname}#p-${p.id}`)}`;
+    });
+  }
   $('#pPuntos').addEventListener('click', e => { const b = e.target.closest('[data-foto]'); if (b) irAFoto(Number(b.dataset.foto)); });
   $('#pFotos').addEventListener('scroll', () => {
     const c = $('#pFotos'); const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));

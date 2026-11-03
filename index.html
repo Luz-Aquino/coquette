@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611032021">
+  <link rel="stylesheet" href="styles.css?v=202611032042">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237A1F3D'/%3E%3Ctext x='32' y='46' font-family='Georgia' font-style='italic' font-size='42' text-anchor='middle' fill='%23FFF7F6'%3EC%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -81,7 +81,7 @@
       </div>
       <div class="ficha-info">
         <p class="ficha-cat" id="pCat"></p>
-        <h2 class="ficha-nombre" id="pNombre"></h2>
+        <div class="ficha-titulo"><h2 class="ficha-nombre" id="pNombre"></h2><span id="pFav"></span></div>
         <p class="ficha-precio"><span id="pPrecio"></span> <small id="pPorPrenda"></small></p>
         <p class="ficha-cuotas">Pagalo en cuotas con Mercado Pago</p>
         <div class="opcion" id="grpTipo">
@@ -93,7 +93,7 @@
           <div class="pastillas" id="pColores"></div>
         </div>
         <div class="opcion" id="grpTalle">
-          <p class="opcion-titulo">Talle</p>
+          <p class="opcion-titulo">Talle <button type="button" class="link-guia" id="btnGuia">Guía de talles</button></p>
           <div class="pastillas" id="pTalles"></div>
         </div>
         <div class="ficha-compra">
@@ -105,10 +105,15 @@
           <button class="boton principal" id="agregar">Agregar al carrito</button>
         </div>
         <p class="aviso-chico" id="pAviso" role="status"></p>
+        <a class="link-wa" id="pWhatsapp" target="_blank" rel="noopener" hidden href="#">¿Tenés dudas? Consultanos por WhatsApp</a>
         <details class="ficha-desc" id="pDescWrap">
           <summary>Descripción</summary>
           <div id="pDesc"></div>
         </details>
+        <section class="relacionados" id="pRelacionados" hidden>
+          <h3>También te puede gustar</h3>
+          <div class="rel-lista" id="pRelLista"></div>
+        </section>
       </div>
     </div>
     </div>
@@ -170,6 +175,7 @@
           <div class="total"><dt>Total</dt><dd id="tTotal">$0</dd></div>
         </dl>
         <p class="aviso-chico centro" id="notaMinimo" hidden></p>
+        <div class="progreso-minimo" id="progresoMinimo" hidden><p class="progreso-texto"></p><div class="progreso-barra"><i></i></div></div>
         <button class="boton principal ancho" id="btnSeguir">Finalizar compra</button>
         <p class="aviso-chico centro" id="notaPago" hidden>Te llevamos a Mercado Pago para pagar en un pago o en cuotas.</p>
       </div>
@@ -203,10 +209,33 @@
     </div>
   </dialog>
 
+  <a class="whatsapp" id="whatsapp" target="_blank" rel="noopener" aria-label="Escribinos por WhatsApp" hidden href="#"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3.5C9.1 3.5 3.5 9 3.5 15.8c0 2.4.7 4.6 1.9 6.5L3.6 28.5l6.4-1.7c1.8 1 3.9 1.5 6 1.5 6.9 0 12.5-5.5 12.5-12.3S22.9 3.5 16 3.5zm0 22.6c-1.9 0-3.7-.5-5.3-1.4l-.4-.2-3.8 1 1-3.7-.2-.4c-1-1.6-1.6-3.5-1.6-5.5 0-5.6 4.6-10.2 10.3-10.2s10.3 4.6 10.3 10.2-4.6 10.2-10.3 10.2zm5.6-7.6c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.5-1.5-.9-.8-1.5-1.8-1.7-2.1-.2-.3 0-.5.1-.6l.5-.6c.2-.2.2-.3.3-.6.1-.2 0-.4 0-.6l-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.7s1.2 3.2 1.4 3.4c.2.2 2.4 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.8-.7 2.1-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.3z"/></svg></a>
+
+  <dialog class="modal" id="dlgGuia" aria-labelledby="tituloGuia">
+    <div class="modal-contenido">
+      <button class="cerrar" data-cerrar aria-label="Cerrar">×</button>
+      <h2 id="tituloGuia">Guía de talles</h2>
+      <p class="guia-nota">Medidas orientativas en centímetros. Cada prenda puede variar: si tenés dudas, escribinos.</p>
+      <table class="guia-tabla">
+        <thead><tr><th>Talle</th><th>Equivale a</th><th>Busto</th><th>Cintura</th><th>Cadera</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>S</td><td>84–88</td><td>64–68</td><td>90–94</td></tr>
+          <tr><td>2</td><td>M</td><td>88–92</td><td>68–72</td><td>94–98</td></tr>
+          <tr><td>3</td><td>L</td><td>92–96</td><td>72–76</td><td>98–102</td></tr>
+          <tr><td>4</td><td>XL</td><td>96–100</td><td>76–80</td><td>102–106</td></tr>
+          <tr><td>5</td><td>XXL</td><td>100–104</td><td>80–84</td><td>106–110</td></tr>
+          <tr><td>Único</td><td>S a M</td><td>84–92</td><td>64–72</td><td>90–98</td></tr>
+        </tbody>
+      </table>
+      <p class="guia-nota"><b>Cómo medirte:</b> busto en la parte más alta, cintura en la parte más angosta y cadera en la parte más ancha, con la cinta sin apretar.</p>
+    </div>
+  </dialog>
+
   <nav class="nav-abajo" aria-label="Navegación">
     <button id="navInicio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5"/><path d="M6.5 9.5V19h11V9.5"/><path d="M10 19v-5h4v5"/></svg>Inicio</button>
     <button id="navTienda"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 9.5L6 5h12l1.5 4.5"/><path d="M4.5 9.5a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5.5 11.5V19h13v-7.5"/><path d="M10 19v-4h4v4"/></svg>Tienda</button>
     <button id="navFiltros"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5h16l-6.2 7.3V19l-3.6-1.8v-4.4z"/></svg>Filtros<span class="nav-n" id="navFiltrosN" hidden>0</span></button>
+    <button id="navCarrito"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>Carrito<span class="nav-n" id="navCarritoN" hidden>0</span></button>
   </nav>
 
   <dialog class="modal filtros" id="dlgFiltros" aria-labelledby="tituloFiltros">
@@ -234,8 +263,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611032021"></script>
-  <script src="demo.js?v=202611032021"></script>
-  <script src="app.js?v=202611032021"></script>
+  <script src="config.js?v=202611032042"></script>
+  <script src="demo.js?v=202611032042"></script>
+  <script src="app.js?v=202611032042"></script>
 </body>
 </html>
