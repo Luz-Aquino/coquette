@@ -776,3 +776,7 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 @media (hover: hover) {
   .tarjeta:hover { transform: translateY(-5px); box-shadow: 0 22px 34px -20px rgba(92,18,41,.55), 0 0 0 1px #F1D3DA; }
 }
+
+.chip.con-color { display: inline-flex; align-items: center; gap: 8px; }
+.chip.con-color i { width: 14px; height: 14px; border-radius: 50%; border: 1px solid rgba(43,20,32,.2); flex: 0 0 auto; }
+.filtros .modal-contenido { max-height: 86dvh; overflow: auto; }

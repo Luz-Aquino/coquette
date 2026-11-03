@@ -14,7 +14,7 @@
   const borrar = (k, ses) => { try { (ses ? sessionStorage : localStorage).removeItem(k); } catch (_) {} };
 
   const st = {
-    cat: null, productos: [], porId: {}, filtro: 'todo', q: '', orden: 'reco',
+    cat: null, productos: [], porId: {}, filtro: 'todo', q: '', orden: 'reco', color: null, talle: null,
     carrito: leer('coquet_carrito', []),
     sesion: null, sel: null, paso: 'carrito', enviando: false
   };
@@ -256,6 +256,7 @@
     const q = sinAcentos(st.q).trim();
     return st.productos.filter(p => {
       if (st.filtro !== 'todo' && p.categorias.indexOf(st.filtro) < 0) return false;
+      if ((st.color || st.talle) && !p.variantes.some(v => v.stock && (!st.color || v.color === st.color) && (!st.talle || v.talle === st.talle))) return false;
       if (!q) return true;
       const texto = sinAcentos([p.nombre, p._cat, p.categorias.join(' '), p._res.colores.join(' ')].join(' '));
       return q.split(/\s+/).every(w => texto.includes(w));
@@ -266,12 +267,13 @@
     const lista = visibles();
     if (st.orden === 'menor') lista.sort((a, b) => a._res.desde - b._res.desde);
     if (st.orden === 'mayor') lista.sort((a, b) => b._res.desde - a._res.desde);
-    const nf = (st.filtro !== 'todo' ? 1 : 0) + (st.orden !== 'reco' ? 1 : 0);
+    const nf = (st.filtro !== 'todo' ? 1 : 0) + (st.orden !== 'reco' ? 1 : 0) + (st.color ? 1 : 0) + (st.talle ? 1 : 0);
     const marca = $('#navFiltrosN'); if (marca) { marca.textContent = nf; marca.hidden = !nf; }
     $('#grilla').innerHTML = lista.map(tarjetaHtml).join('');
     $('#vacio').hidden = lista.length > 0 || !st.productos.length;
     const n = lista.length;
     $('#resultado').textContent = st.productos.length ? (n === 1 ? '1 producto' : `${n} productos`) : '';
+    const ver = $('#filtroVer'); if (ver) ver.textContent = n === 1 ? 'Ver 1 producto' : `Ver ${n} productos`;
   }
 
   function tarjetaHtml(p) {
@@ -737,7 +739,7 @@
   $('#busqueda').addEventListener('submit', e => { e.preventDefault(); $('#catalogo').scrollIntoView(); });
   let tq;
   $('#q').addEventListener('input', e => { clearTimeout(tq); tq = setTimeout(() => { st.q = e.target.value; pintarGrilla(); }, 120); });
-  $('#limpiarBusqueda').addEventListener('click', () => { st.q = ''; $('#q').value = ''; st.filtro = 'todo'; pintarCategorias(); pintarGrilla(); });
+  $('#limpiarBusqueda').addEventListener('click', () => { st.q = ''; $('#q').value = ''; st.filtro = 'todo'; st.color = null; st.talle = null; pintarCategorias(); pintarGrilla(); });
 
   $('#pTipos').addEventListener('click', e => { const b = e.target.closest('[data-tipo]'); if (!b) return; st.sel.tipo = b.dataset.tipo; ajustarSeleccion(); pintarSeleccion(); });
   $('#pColores').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (!b || b.disabled) return; st.sel.color = b.dataset.color; ajustarSeleccion(); pintarSeleccion(); });
@@ -779,8 +781,23 @@
   }, true);
   /* ---------- Barra de abajo: Inicio · Tienda · Filtros ---------- */
   const suave = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  const ORDEN_TALLES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  const pesoTalle = t => { const u = String(t).toUpperCase().trim(); const i = ORDEN_TALLES.indexOf(u);
+    if (i >= 0) return i; const n = parseFloat(u); if (!isNaN(n)) return 100 + n; return /UNIC|ÚNIC/.test(u) ? 1000 : 500; };
   function pintarFiltros() {
     $('#filtroCats').innerHTML = $('#categorias').innerHTML;
+    const colores = {}, talles = {};
+    st.productos.forEach(p => p.variantes.forEach(v => {
+      if (!v.stock) return;
+      if (v.color && !/^color\s*\d+$/i.test(v.color.trim())) colores[v.color] = 1;
+      if (v.talle) talles[v.talle] = 1;
+    }));
+    const listaC = Object.keys(colores).sort((a, b) => nombreLindo(a).localeCompare(nombreLindo(b), 'es'));
+    const listaT = Object.keys(talles).sort((a, b) => pesoTalle(a) - pesoTalle(b) || a.localeCompare(b));
+    $('#grpFiltroColor').hidden = !listaC.length;
+    $('#grpFiltroTalle').hidden = !listaT.length;
+    $('#filtroColores').innerHTML = listaC.map(c => `<button class="chip con-color" data-color="${esc(c)}" aria-pressed="${st.color === c}"><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}</button>`).join('');
+    $('#filtroTalles').innerHTML = listaT.map(t => `<button class="chip" data-talle="${esc(t)}" aria-pressed="${st.talle === t}">${esc(t)}</button>`).join('');
     $$('#filtroOrden [data-orden]').forEach(b => b.setAttribute('aria-pressed', b.dataset.orden === st.orden));
   }
   $('#navInicio').addEventListener('click', () => {
@@ -800,7 +817,15 @@
     const b = e.target.closest('[data-orden]'); if (!b) return;
     st.orden = b.dataset.orden; pintarFiltros(); pintarGrilla();
   });
-  $('#filtroLimpiar').addEventListener('click', () => { st.filtro = 'todo'; st.orden = 'reco'; pintarCategorias(); pintarFiltros(); pintarGrilla(); });
+  $('#filtroColores').addEventListener('click', e => {
+    const b = e.target.closest('[data-color]'); if (!b) return;
+    st.color = st.color === b.dataset.color ? null : b.dataset.color; pintarFiltros(); pintarGrilla();
+  });
+  $('#filtroTalles').addEventListener('click', e => {
+    const b = e.target.closest('[data-talle]'); if (!b) return;
+    st.talle = st.talle === b.dataset.talle ? null : b.dataset.talle; pintarFiltros(); pintarGrilla();
+  });
+  $('#filtroLimpiar').addEventListener('click', () => { st.filtro = 'todo'; st.orden = 'reco'; st.color = null; st.talle = null; pintarCategorias(); pintarFiltros(); pintarGrilla(); });
   $('#filtroVer').addEventListener('click', () => { cerrar($('#dlgFiltros')); setTimeout(() => $('#catalogo').scrollIntoView({ behavior: suave() }), 60); });
 
   const barra = $('#barra');
