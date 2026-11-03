@@ -1,0 +1,53 @@
+/* Panel de administración Coquette */
+.admin .barra { position: sticky; }
+.admin-email { font-size: 14px; color: var(--gris); margin-right: 6px; max-width: 46vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-main { max-width: 980px; margin: 0 auto; padding: 24px var(--gutter) 60px; }
+.admin-main h1 { font: 500 clamp(32px, 5vw, 46px)/1.05 var(--serif); margin: 0; }
+.admin-ingreso { max-width: 420px; margin: 8vh auto 0; text-align: center; }
+.admin-ingreso p { color: var(--gris); }
+.admin-ingreso .google-btn { display: flex; justify-content: center; margin: 22px 0; }
+.admin-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.admin-cabeza .boton { min-height: 42px; }
+
+.resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.resumen div { background: #fff; border: var(--borde); border-radius: 12px; padding: 12px 14px; }
+.resumen b { display: block; font: 500 26px/1.1 var(--serif); }
+.resumen span { font-size: 13px; color: var(--gris); }
+.resumen .destacado { background: var(--bordo); border-color: var(--bordo); color: #fff; }
+.resumen .destacado span { color: #f4d7db; }
+
+.admin-filtros { display: grid; gap: 10px; margin-bottom: 16px; }
+.admin-estados { position: static; margin: 0; padding: 0 0 4px; background: none; }
+.admin-estados .chip span { margin-left: 6px; font-size: 12px; opacity: .75; }
+#buscar { height: 44px; padding: 0 16px; border-radius: 22px; border: var(--borde); background: #fff; font-size: 16px; }
+
+.admin-lista { display: grid; gap: 10px; }
+.pedido { background: #fff; border: var(--borde); border-radius: 14px; overflow: hidden; }
+.pedido[open] { border-color: var(--bordo); }
+.pedido summary {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 14px 16px; cursor: pointer; list-style: none;
+}
+.pedido summary::-webkit-details-marker { display: none; }
+.pedido-id { font-weight: 700; }
+.pedido-quien { color: var(--gris); font-size: 14px; }
+.pedido-total { text-align: right; font-weight: 700; }
+.pedido-cuerpo { padding: 0 16px 16px; border-top: var(--borde); }
+.pedido-cuerpo h3 { font: 500 18px/1.2 var(--serif); margin: 16px 0 8px; }
+.items { list-style: none; padding: 0; margin: 0; }
+.items li { display: grid; grid-template-columns: 54px 1fr auto; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px dashed var(--linea); font-size: 14px; }
+.items img { width: 54px; height: 70px; object-fit: cover; border-radius: 5px; background: var(--rosa); }
+.items small { color: var(--gris); display: block; }
+.datos { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; font-size: 14px; margin: 0; }
+.datos dt { color: var(--gris); }
+.datos dd { margin: 0; word-break: break-word; }
+.acciones { display: grid; gap: 10px; margin-top: 16px; padding: 14px; background: var(--rosa-claro); border-radius: 12px; }
+.acciones label { font-size: 14px; font-weight: 600; display: grid; gap: 5px; }
+.acciones select, .acciones input, .acciones textarea { height: 44px; padding: 0 12px; border-radius: 10px; border: var(--borde); background: #fff; font: inherit; font-weight: 400; }
+.acciones textarea { height: 70px; padding: 10px 12px; resize: vertical; }
+.acciones .fila { display: flex; gap: 10px; flex-wrap: wrap; }
+.acciones .boton { min-height: 44px; }
+.acciones small { color: var(--gris); font-weight: 400; }
+@media (min-width: 700px) {
+  .acciones { grid-template-columns: 1fr 1fr; }
+  .acciones .ancha { grid-column: 1 / -1; }
+}

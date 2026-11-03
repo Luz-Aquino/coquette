@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Coquette · Administración</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin">
+  <header class="barra con-borde">
+    <a class="marca" href="./">Coquette<small>NFM</small></a>
+    <div class="barra-acciones">
+      <span class="admin-email" id="adminEmail"></span>
+      <button class="cuenta" id="btnSalir" hidden>Salir</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+    <section id="ingreso" class="admin-ingreso">
+      <h1>Panel de la tienda</h1>
+      <p>Ingresá con tu cuenta de Google de administradora.</p>
+      <div class="google-btn" id="googleAdmin"></div>
+      <p class="error" id="errorIngreso" role="alert" hidden></p>
+    </section>
+
+    <section id="panel" hidden>
+      <div class="admin-cabeza">
+        <h1>Pedidos</h1>
+        <button class="boton secundario" id="btnRecargar">Actualizar</button>
+      </div>
+      <div class="resumen" id="resumen"></div>
+      <div class="admin-filtros">
+        <nav class="categorias admin-estados" id="filtros" aria-label="Filtrar por estado"></nav>
+        <input type="search" id="buscar" placeholder="Buscar por pedido, nombre, email o teléfono" aria-label="Buscar pedidos">
+      </div>
+      <div id="lista" class="admin-lista" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="admin.js"></script>
+</body>
+</html>
