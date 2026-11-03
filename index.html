@@ -2,6 +2,7 @@
 <html lang="es-AR">
 <head>
   <meta charset="utf-8">
+  <meta name="color-scheme" content="only light">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Coquette NFM · Ropa femenina</title>
   <meta name="description" content="Vestidos, blusas y conjuntos. Envíos a todo el país por Correo Argentino. Pagá en cuotas con Mercado Pago.">
@@ -126,7 +127,7 @@
       <section id="pasoCompra" class="cajon-cuerpo" hidden>
         <div class="login-caja" id="loginCompra">
           <p>Para comprar, ingresá con tu cuenta de Google. Así te mandamos la confirmación y el seguimiento por mail.</p>
-          <div class="google-btn" data-google-boton></div>
+          <div class="google-btn" data-google-boton="compra"></div>
         </div>
         <form id="formCompra" class="form" hidden novalidate>
           <p class="sesion-linea" id="sesionLinea"></p>
@@ -161,6 +162,7 @@
           <div id="filaEnvio" hidden><dt>Envío</dt><dd id="tEnvio"></dd></div>
           <div class="total"><dt>Total</dt><dd id="tTotal">$0</dd></div>
         </dl>
+        <p class="aviso-chico centro" id="notaMinimo" hidden></p>
         <button class="boton principal ancho" id="btnSeguir">Finalizar compra</button>
         <p class="aviso-chico centro" id="notaPago" hidden>Te llevamos a Mercado Pago para pagar en un pago o en cuotas.</p>
       </div>
@@ -174,7 +176,7 @@
       <h2 id="tituloCuenta">Tu cuenta</h2>
       <div id="cuentaFuera">
         <p>Ingresá con Google para comprar y ver tus pedidos. Para mirar el catálogo no hace falta.</p>
-        <div class="google-btn" data-google-boton></div>
+        <div class="google-btn" data-google-boton="cuenta"></div>
       </div>
       <div id="cuentaDentro" hidden>
         <p id="cuentaEmail"></p>
@@ -198,7 +200,6 @@
 
   <script src="config.js"></script>
   <script src="demo.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -103,6 +103,7 @@
   }
 
   function pintarTodo() {
+    if (!pintarTodo.listo) { pintarTodo.listo = true; setTimeout(volverDelLogin, 50); }
     pintarPerchero();
     pintarCategorias();
     pintarGrilla();
@@ -446,7 +447,12 @@
     if (env) $('#tEnvio').textContent = env.costo == null ? 'A coordinar' : fmt(env.costo);
     $('#tTotal').textContent = fmt(sub + (env && env.costo ? env.costo : 0));
     const btn = $('#btnSeguir');
-    if (st.paso === 'carrito') { btn.textContent = 'Finalizar compra'; btn.disabled = false; }
+    const minimo = Number(CFG.MINIMO_COMPRA) || 0;
+    const falta = Math.max(0, minimo - sub);
+    $('#notaMinimo').hidden = !falta;
+    if (falta) $('#notaMinimo').textContent = `La compra mínima es de ${fmt(minimo)}. Te faltan ${fmt(falta)}.`;
+    if (falta) { btn.textContent = `Mínimo de compra ${fmt(minimo)}`; btn.disabled = true; }
+    else if (st.paso === 'carrito') { btn.textContent = 'Finalizar compra'; btn.disabled = false; }
     else if (!st.sesion) { btn.textContent = 'Ingresá para continuar'; btn.disabled = true; }
     else if (!st.enviando) { btn.textContent = DEMO ? 'Pagar con Mercado Pago (demo)' : 'Pagar con Mercado Pago'; btn.disabled = false; }
   }
@@ -590,14 +596,14 @@
     const d = decodificarJwt(credencial);
     if (!d || !d.email) return;
     st.sesion = { token: credencial, exp: d.exp, email: d.email, nombre: d.name || '', foto: d.picture || '' };
-    guardar('coquet_sesion', st.sesion, true);
+    guardar('coquet_sesion', st.sesion);
     tras_sesion();
     tostada(`Hola, ${(st.sesion.nombre || st.sesion.email).split(' ')[0]}`);
   }
   function sesionVencida() { return !st.sesion || (st.sesion.exp && st.sesion.exp * 1000 < Date.now() + 60000); }
   function cerrarSesion(silencioso) {
     st.sesion = null;
-    borrar('coquet_sesion', true);
+    borrar('coquet_sesion');
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
     tras_sesion();
     if (!silencioso) tostada('Cerraste sesión.');
@@ -612,10 +618,11 @@
 
   let googleListo = false;
   function iniciarGoogle() {
-    const s = leer('coquet_sesion', null, true);
+    const s = leer('coquet_sesion', null);
     if (s && s.exp * 1000 > Date.now() + 60000) st.sesion = s;
     tras_sesion();
-    if (DEMO || !CFG.GOOGLE_CLIENT_ID) return;
+    pintarBotonesGoogle();
+    return;
     let intentos = 0;
     (function esperar() {
       if (!(window.google && google.accounts && google.accounts.id)) { if (intentos++ < 100) setTimeout(esperar, 150); return; }
@@ -635,15 +642,21 @@
         el.firstChild.onclick = () => {
           const exp = Math.floor(Date.now() / 1000) + 3600;
           st.sesion = { token: 'demo', exp, email: 'clienta@ejemplo.com', nombre: 'Clienta de prueba' };
-          guardar('coquet_sesion', st.sesion, true);
+          guardar('coquet_sesion', st.sesion);
           tras_sesion();
         };
         return;
       }
-      if (!googleListo) return;
-      el.innerHTML = '';
-      google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: 'es-419', width: Math.min(Math.max(el.clientWidth, 240), 380) });
+      el.innerHTML = `<a class="boton principal ancho" href="login.html?volver=${encodeURIComponent(el.dataset.googleBoton || 'inicio')}">Ingresar con Google</a>`;
     });
+  }
+
+  function volverDelLogin() {
+    const h = location.hash;
+    if (h !== '#compra' && h !== '#cuenta') return;
+    history.replaceState(null, '', location.pathname + location.search);
+    if (h === '#compra' && st.carrito.length) { abrirCarrito(); irPaso('compra'); }
+    else if (h === '#cuenta') abrirCuenta();
   }
 
   /* ---------- Cuenta y mis pedidos ---------- */
@@ -748,7 +761,7 @@
   $('#formCompra').addEventListener('submit', e => { e.preventDefault(); pagar(); });
   $('#pasoCompra').addEventListener('click', e => { if (e.target.id === 'cambiarCuenta') cerrarSesion(); });
 
-  $('#btnCuenta').addEventListener('click', abrirCuenta);
+  $('#btnCuenta').addEventListener('click', () => { if (!st.sesion && !DEMO) location.href = 'login.html?volver=cuenta'; else abrirCuenta(); });
   $('#linkMisPedidos').addEventListener('click', e => { e.preventDefault(); abrirCuenta(); });
   $('#btnSalir').addEventListener('click', () => cerrarSesion());
 

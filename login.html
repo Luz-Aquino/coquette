@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+  <meta charset="utf-8">
+  <meta name="color-scheme" content="only light">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>Ingresar · Coquette NFM</title>
+  <meta name="theme-color" content="#7A1F3D">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .ingreso { min-height: 100dvh; display: grid; grid-template-columns: 1fr; }
+    .ingreso-foto { display: none; background: var(--rosa) center/cover no-repeat; }
+    .ingreso-caja { display: flex; flex-direction: column; justify-content: center; padding: 32px var(--gutter) 48px; max-width: 460px; margin: 0 auto; width: 100%; }
+    .ingreso-caja .marca { font-size: 64px; line-height: 1; margin-bottom: 28px; display: inline-block; }
+    .ingreso-caja .marca small { font-size: 13px; vertical-align: 18px; }
+    .ingreso-caja h1 { font: 500 30px/1.15 var(--serif); margin: 0 0 10px; }
+    .ingreso-caja p { color: var(--gris); margin: 0 0 24px; }
+    .ingreso-caja ul { margin: 0 0 28px; padding: 0; list-style: none; display: grid; gap: 8px; font-size: 15px; }
+    .ingreso-caja li::before { content: "✓"; color: var(--pistacho-hondo); font-weight: 700; margin-right: 8px; }
+    #googleIngreso { min-height: 44px; display: flex; }
+    .ingreso-volver { margin-top: 26px; font-size: 14px; }
+    @media (min-width: 900px) {
+      .ingreso { grid-template-columns: 1.1fr 1fr; }
+      .ingreso-foto { display: block; border-radius: 0 999px 999px 0 / 0 50% 50% 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="ingreso">
+    <div class="ingreso-foto" id="foto" aria-hidden="true"></div>
+    <section class="ingreso-caja">
+      <a class="marca" href="./">Coquette<small>NFM</small></a>
+      <h1>Ingresá para comprar</h1>
+      <p>Usá tu cuenta de Google. No necesitás crear una contraseña nueva.</p>
+      <ul>
+        <li>Te mandamos la confirmación de tu compra por mail</li>
+        <li>Seguís tu envío desde Mis pedidos</li>
+        <li>Tus datos de envío quedan guardados para la próxima</li>
+      </ul>
+      <div id="googleIngreso"></div>
+      <p class="error" id="error" role="alert" hidden></p>
+      <a class="ingreso-volver" href="./" id="volver">Volver a la tienda</a>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script>
+    (function () {
+      const CFG = window.COQUET_CONFIG || {};
+      const destino = { compra: './#compra', cuenta: './#cuenta' }[new URLSearchParams(location.search).get('volver')] || './';
+      document.getElementById('volver').href = destino.replace(/#.*/, '');
+
+      // Foto de fondo: el primer producto del catálogo guardado en el navegador
+      try {
+        const cat = JSON.parse(localStorage.getItem('coquet_cat'));
+        const p = cat && cat.productos && cat.productos.find(x => x.imagenes && x.imagenes[0]);
+        if (p) {
+          const img = new Image(); img.referrerPolicy = 'no-referrer'; img.src = p.imagenes[0];
+          img.onload = () => { document.getElementById('foto').style.backgroundImage = `url("${img.src}")`; };
+        }
+      } catch (_) {}
+
+      function decodificar(t) {
+        try {
+          let b = t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+          while (b.length % 4) b += '=';
+          return JSON.parse(decodeURIComponent(atob(b).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')));
+        } catch (_) { return null; }
+      }
+      function alIngresar(r) {
+        const d = decodificar(r.credential);
+        if (!d || !d.email) { mostrarError('No pudimos ingresar. Probá de nuevo.'); return; }
+        try {
+          localStorage.setItem('coquet_sesion', JSON.stringify({ token: r.credential, exp: d.exp, email: d.email, nombre: d.name || '', foto: d.picture || '' }));
+        } catch (_) {}
+        location.replace(destino);
+      }
+      function mostrarError(m) { const e = document.getElementById('error'); e.textContent = m; e.hidden = false; }
+
+      // Si ya tiene sesión vigente, vuelve directo
+      try {
+        const s = JSON.parse(localStorage.getItem('coquet_sesion'));
+        if (s && s.exp * 1000 > Date.now() + 60000) { location.replace(destino); return; }
+      } catch (_) {}
+
+      if (!CFG.GOOGLE_CLIENT_ID) { mostrarError('El ingreso todavía no está disponible.'); return; }
+      let n = 0;
+      (function esperar() {
+        if (!(window.google && google.accounts && google.accounts.id)) {
+          if (n++ < 100) setTimeout(esperar, 150); else mostrarError('No se pudo cargar el ingreso con Google. Revisá tu conexión.');
+          return;
+        }
+        google.accounts.id.initialize({ client_id: CFG.GOOGLE_CLIENT_ID, callback: alIngresar, use_fedcm_for_prompt: true });
+        const el = document.getElementById('googleIngreso');
+        google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', locale: 'es-419', width: Math.min(Math.max(el.clientWidth, 260), 380) });
+        google.accounts.id.prompt();
+      })();
+    })();
+  </script>
+</body>
+</html>

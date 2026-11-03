@@ -15,6 +15,7 @@ const TIENDA = {
   HOJA_ENVIOS: 'Envíos',
   ADMINS: ['luzaquino84@gmail.com'],
   CUOTAS_MAX: 12,          // máximo de cuotas que ofrece Mercado Pago
+  MINIMO_COMPRA: 100000,   // compra mínima en productos (sin envío)
   CACHE_MIN: 10,           // minutos que se guarda el catálogo en memoria
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires'
 };
@@ -231,6 +232,7 @@ function crearPedido_(b) {
     };
   });
   const subtotal = lineas.reduce((s, l) => s + l.precio * l.cantidad, 0);
+  if (subtotal < TIENDA.MINIMO_COMPRA) throw new Error(`La compra mínima es de $${fmt_(TIENDA.MINIMO_COMPRA)}. Te faltan $${fmt_(TIENDA.MINIMO_COMPRA - subtotal)}.`);
 
   // 2) Datos de envío
   const e = b.envio || {};
