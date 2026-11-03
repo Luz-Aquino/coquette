@@ -626,7 +626,11 @@
   }
   function pintarBotonesGoogle() {
     $$('[data-google-boton]').forEach(el => {
-      if (DEMO || !CFG.GOOGLE_CLIENT_ID) {
+      if (!DEMO && !CFG.GOOGLE_CLIENT_ID) {
+        el.innerHTML = '<p class="aviso-chico">Muy pronto vas a poder comprar desde acá. Mientras tanto podés armar tu carrito.</p>';
+        return;
+      }
+      if (DEMO) {
         el.innerHTML = '<button type="button" class="boton secundario google-demo">Continuar con Google (demostración)</button>';
         el.firstChild.onclick = () => {
           const exp = Math.floor(Date.now() / 1000) + 3600;
