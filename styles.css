@@ -636,7 +636,7 @@ body.cursor-magico input, body.cursor-magico textarea { cursor: text; }
   background: linear-gradient(180deg, #FFF4D6 0%, #E6C88E 30%, #B8935A 62%, #8C6D3C 80%, #E9D3A3 100%);
   box-shadow: 0 8px 14px -6px rgba(92,18,41,.35), inset 0 1px 0 rgba(255,255,255,.7);
 }
-.perchero-prendas { padding-top: 34px; gap: clamp(16px, 2.2vw, 28px); }
+.perchero-prendas { padding-top: 38px; gap: clamp(16px, 2.2vw, 28px); }
 .prenda { width: clamp(150px, 40vw, 230px); }
 .prenda::before { content: none; }
 .prenda-colgada { display: block; }
@@ -686,3 +686,36 @@ body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 .filtro-tit { margin: 18px 0 10px; font: 600 13px/1 var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gris); }
 .filtro-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .filtro-pie { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+/* ---------- Ficha: la X siempre visible ---------- */
+.hoja-marco { position: relative; width: 100%; animation: sube .32s cubic-bezier(.2,.8,.2,1); }
+.hoja-marco > .hoja-contenido { width: 100%; animation: none; }
+.hoja-marco > .cerrar { position: absolute; top: 12px; right: 12px; z-index: 6; box-shadow: 0 4px 14px rgba(92,18,41,.18); }
+@media (min-width: 860px) {
+  .hoja-marco { width: min(1040px, 94vw); }
+  .hoja-marco > .hoja-contenido { width: 100%; }
+  .hoja-marco > .cerrar { right: 18px; }
+}
+
+/* ---------- Carrusel colgado de la barra (hilo dorado tipo cuadro de galería) ---------- */
+.prenda-colgada { position: relative; transform-origin: 50% -41px; transition: transform .6s cubic-bezier(.3,.7,.3,1); }
+.colgante { position: absolute; left: 0; right: 0; bottom: calc(100% - 7px); height: 48px; pointer-events: none; }
+.colgante svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.colgante path { fill: none; stroke: #C9A36A; stroke-width: 1.2; vector-effect: non-scaling-stroke; filter: drop-shadow(0 1px 0 rgba(255,255,255,.6)); }
+.argolla {
+  position: absolute; top: -9px; left: 50%; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%;
+  border: 2.5px solid #C9A36A; box-sizing: border-box;
+  background: transparent; box-shadow: 0 2px 3px rgba(92,18,41,.25), inset 0 1px 0 rgba(255,255,255,.7);
+  border-top-color: #F3DFB0; border-left-color: #E2C68E;
+}
+.clavo {
+  position: absolute; bottom: -3px; width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #FFF4D6, #C9A36A 55%, #8C6D3C);
+  box-shadow: 0 1px 2px rgba(92,18,41,.35); z-index: 2;
+}
+.clavo.izq { left: calc(9% - 4.5px); }
+.clavo.der { right: calc(9% - 4.5px); }
+@media (hover: hover) {
+  .prenda:hover .arco { transform: none; }
+  .prenda:hover .prenda-colgada { transform: rotate(1.6deg); }
+}

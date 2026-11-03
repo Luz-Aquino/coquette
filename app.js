@@ -125,6 +125,7 @@
     const elegidos = st.productos.filter(p => p.imagenes.length).slice(0, 14);
     const prenda = (p, i, copia) => `<a class="prenda" href="#p-${esc(p.id)}" style="--tono:${TONOS[i % TONOS.length]};--d:${(i % 5) * 0.12}s" ${copia ? 'aria-hidden="true" tabindex="-1"' : ''}>
         <span class="prenda-colgada">
+          <span class="colgante" aria-hidden="true"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50 2L9 40M50 2L91 40"/></svg><i class="argolla"></i><i class="clavo izq"></i><i class="clavo der"></i></span>
           <span class="arco"><img src="${esc(p.imagenes[0])}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
         </span>
         <span class="prenda-nombre">${esc(p._nombre)}</span>
