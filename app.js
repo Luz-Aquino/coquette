@@ -14,7 +14,7 @@
   const borrar = (k, ses) => { try { (ses ? sessionStorage : localStorage).removeItem(k); } catch (_) {} };
 
   const st = {
-    cat: null, productos: [], porId: {}, filtro: 'todo', q: '',
+    cat: null, productos: [], porId: {}, filtro: 'todo', q: '', orden: 'reco',
     carrito: leer('coquet_carrito', []),
     sesion: null, sel: null, paso: 'carrito', enviando: false
   };
@@ -123,22 +123,12 @@
   function pintarPerchero() {
     const el = $('#perchero');
     const elegidos = st.productos.filter(p => p.imagenes.length).slice(0, 14);
-    // Percha dorada (gancho + hombros) y moño de satén, dibujados en SVG
-    const PERCHA = '<svg class="percha" viewBox="0 0 200 74" aria-hidden="true"><defs><linearGradient id="oroPercha" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6E3B8"/><stop offset=".5" stop-color="#C9A36A"/><stop offset="1" stop-color="#9C7A45"/></linearGradient></defs>'
-      + '<path d="M100 2c-9 0-13 7-10.5 12.5C92 20 100 21 100 30" fill="none" stroke="url(#oroPercha)" stroke-width="4" stroke-linecap="round"/>'
-      + '<path d="M100 31L13 63q-7 3-3 7h180q4-4-3-7z" fill="none" stroke="url(#oroPercha)" stroke-width="4.5" stroke-linejoin="round"/></svg>';
-    const MONO = '<svg class="mono" viewBox="0 0 64 44" aria-hidden="true">'
-      + '<path class="mono-cinta" d="M29 22L17 42l6-1 3 3 5-17zM35 22l12 20-6-1-3 3-5-17z"/>'
-      + '<path class="mono-lazo" d="M30 19C19 4 3 6 5 19c1.5 10 16 9 25 4zM34 19C45 4 61 6 59 19c-1.5 10-16 9-25 4z"/>'
-      + '<path class="mono-brillo" d="M10 15c4-5 11-5 16 0M38 15c5-5 12-5 16 0" fill="none"/>'
-      + '<rect class="mono-nudo" x="27" y="15" width="10" height="11" rx="4"/></svg>';
     const prenda = (p, i, copia) => `<a class="prenda" href="#p-${esc(p.id)}" style="--tono:${TONOS[i % TONOS.length]};--d:${(i % 5) * 0.12}s" ${copia ? 'aria-hidden="true" tabindex="-1"' : ''}>
         <span class="prenda-colgada">
-          ${PERCHA}${MONO}
           <span class="arco"><img src="${esc(p.imagenes[0])}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
-          <span class="etiqueta-precio"><small>${p._res.soloPack ? 'pack x6' : 'desde'}</small>${fmt(p._res.desde)}</span>
         </span>
-        <span class="prenda-nombre">${esc(p._nombre)}</span></a>`;
+        <span class="prenda-nombre">${esc(p._nombre)}</span>
+        <span class="prenda-precio">${p._res.soloPack ? 'Pack x6 · ' : 'desde '}${fmt(p._res.desde)}</span></a>`;
     // Se repite la tira para que el carrusel gire sin fin
     el.innerHTML = elegidos.map((p, i) => prenda(p, i, false)).join('') + elegidos.map((p, i) => prenda(p, i, true)).join('');
     const per = $('.perchero');
@@ -273,6 +263,10 @@
 
   function pintarGrilla() {
     const lista = visibles();
+    if (st.orden === 'menor') lista.sort((a, b) => a._res.desde - b._res.desde);
+    if (st.orden === 'mayor') lista.sort((a, b) => b._res.desde - a._res.desde);
+    const nf = (st.filtro !== 'todo' ? 1 : 0) + (st.orden !== 'reco' ? 1 : 0);
+    const marca = $('#navFiltrosN'); if (marca) { marca.textContent = nf; marca.hidden = !nf; }
     $('#grilla').innerHTML = lista.map(tarjetaHtml).join('');
     $('#vacio').hidden = lista.length > 0 || !st.productos.length;
     const n = lista.length;
@@ -782,6 +776,32 @@
     const img = e.target;
     if (img.tagName === 'IMG' && !img.dataset.fallo) { img.dataset.fallo = '1'; img.style.visibility = 'hidden'; }
   }, true);
+  /* ---------- Barra de abajo: Inicio · Tienda · Filtros ---------- */
+  const suave = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  function pintarFiltros() {
+    $('#filtroCats').innerHTML = $('#categorias').innerHTML;
+    $$('#filtroOrden [data-orden]').forEach(b => b.setAttribute('aria-pressed', b.dataset.orden === st.orden));
+  }
+  $('#navInicio').addEventListener('click', () => {
+    $$('dialog').forEach(d => d.open && d.close());
+    scrollTo({ top: 0, behavior: suave() }); setTimeout(escribirFirma, 250);
+  });
+  $('#navTienda').addEventListener('click', () => {
+    $$('dialog').forEach(d => d.open && d.close());
+    $('#catalogo').scrollIntoView({ behavior: suave() });
+  });
+  $('#navFiltros').addEventListener('click', () => { pintarFiltros(); abrir($('#dlgFiltros')); });
+  $('#filtroCats').addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]'); if (!b) return;
+    st.filtro = b.dataset.cat; pintarCategorias(); pintarFiltros(); pintarGrilla();
+  });
+  $('#filtroOrden').addEventListener('click', e => {
+    const b = e.target.closest('[data-orden]'); if (!b) return;
+    st.orden = b.dataset.orden; pintarFiltros(); pintarGrilla();
+  });
+  $('#filtroLimpiar').addEventListener('click', () => { st.filtro = 'todo'; st.orden = 'reco'; pintarCategorias(); pintarFiltros(); pintarGrilla(); });
+  $('#filtroVer').addEventListener('click', () => { cerrar($('#dlgFiltros')); setTimeout(() => $('#catalogo').scrollIntoView({ behavior: suave() }), 60); });
+
   const barra = $('#barra');
   window.addEventListener('scroll', () => barra.classList.toggle('con-borde', scrollY > 8), { passive: true });
 
