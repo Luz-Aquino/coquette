@@ -256,7 +256,7 @@
     const q = sinAcentos(st.q).trim();
     return st.productos.filter(p => {
       if (st.filtro !== 'todo' && p.categorias.indexOf(st.filtro) < 0) return false;
-      if ((st.color || st.talle) && !p.variantes.some(v => v.stock && (!st.color || v.color === st.color) && (!st.talle || v.talle === st.talle))) return false;
+      if ((st.color || st.talle) && !p.variantes.some(v => v.stock && (!st.color || familiaColor(v.color) === st.color) && (!st.talle || v.talle === st.talle))) return false;
       if (!q) return true;
       const texto = sinAcentos([p.nombre, p._cat, p.categorias.join(' '), p._res.colores.join(' ')].join(' '));
       return q.split(/\s+/).every(w => texto.includes(w));
@@ -781,6 +781,28 @@
   }, true);
   /* ---------- Barra de abajo: Inicio · Tienda · Filtros ---------- */
   const suave = () => matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+  // Familias de color: unifica los nombres del proveedor (Verde Agua, Verde Militar… → Verde)
+  const FAMILIAS = [
+    ['Negro', '#1E1A1C', /negro/],
+    ['Blanco y crema', '#FBF7EE', /blanco|crema|cremita|hueso|natural|marfil/],
+    ['Beige y camel', '#CDB08A', /beige|camel|vison|nude|arena/],
+    ['Marrón', '#6E4632', /marr[oó]n|chocolate|terracota|cafe|caf[eé]/],
+    ['Gris', '#9A9A9E', /gris|topo|plata/],
+    ['Rosa', '#F1A9BE', /rosa|fucsia|salm[oó]n|coral/],
+    ['Rojo y bordó', '#8E1F2F', /rojo|bord[oó]|vino/],
+    ['Lila y violeta', '#B79AD8', /lila|morado|violeta|lavanda|uva/],
+    ['Azul y celeste', '#7FA8D8', /azul|celeste|aqua|marino|francia/],
+    ['Verde', '#7FA36A', /verde|menta|pistacho|oliva|militar/],
+    ['Amarillo', '#F2D46B', /amarillo|patito|mostaza|limon/],
+    ['Naranja', '#EE9A5A', /naranja/],
+    ['Surtidos', 'conic-gradient(#F1A9BE 0 25%, #7FA8D8 0 50%, #F2D46B 0 75%, #7FA36A 0)', /surtid|estampad|varios/]
+  ];
+  function familiaColor(nombre) {
+    const n = sinAcentos(String(nombre || '')).toLowerCase().trim();
+    if (!n || /^color\s*\d+$/.test(n)) return null;
+    const f = FAMILIAS.find(f => f[2].test(n));
+    return f ? f[0] : null;
+  }
   const ORDEN_TALLES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
   const pesoTalle = t => { const u = String(t).toUpperCase().trim(); const i = ORDEN_TALLES.indexOf(u);
     if (i >= 0) return i; const n = parseFloat(u); if (!isNaN(n)) return 100 + n; return /UNIC|ÚNIC/.test(u) ? 1000 : 500; };
@@ -789,14 +811,14 @@
     const colores = {}, talles = {};
     st.productos.forEach(p => p.variantes.forEach(v => {
       if (!v.stock) return;
-      if (v.color && !/^color\s*\d+$/i.test(v.color.trim())) colores[v.color] = 1;
+      const fam = familiaColor(v.color); if (fam) colores[fam] = 1;
       if (v.talle) talles[v.talle] = 1;
     }));
-    const listaC = Object.keys(colores).sort((a, b) => nombreLindo(a).localeCompare(nombreLindo(b), 'es'));
+    const listaC = FAMILIAS.filter(f => colores[f[0]]);
     const listaT = Object.keys(talles).sort((a, b) => pesoTalle(a) - pesoTalle(b) || a.localeCompare(b));
     $('#grpFiltroColor').hidden = !listaC.length;
     $('#grpFiltroTalle').hidden = !listaT.length;
-    $('#filtroColores').innerHTML = listaC.map(c => `<button class="chip con-color" data-color="${esc(c)}" aria-pressed="${st.color === c}"><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}</button>`).join('');
+    $('#filtroColores').innerHTML = listaC.map(([c, tono]) => `<button class="chip con-color" data-color="${esc(c)}" aria-pressed="${st.color === c}"><i style="background:${tono}"></i>${esc(c)}</button>`).join('');
     $('#filtroTalles').innerHTML = listaT.map(t => `<button class="chip" data-talle="${esc(t)}" aria-pressed="${st.talle === t}">${esc(t)}</button>`).join('');
     $$('#filtroOrden [data-orden]').forEach(b => b.setAttribute('aria-pressed', b.dataset.orden === st.orden));
   }
