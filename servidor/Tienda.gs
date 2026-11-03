@@ -260,44 +260,51 @@ function crearPedido_(b) {
   };
   conLock_(() => hojaPedidos_().appendRow(COLUMNAS_PEDIDOS.map(c => fila[c] === undefined ? '' : fila[c])));
 
-  // 4) Crear el cobro en Mercado Pago
+  // 4) Crear la orden de cobro en Mercado Pago (API de Orders, Checkout Pro)
   const volver = site + (site.indexOf('?') >= 0 ? '&' : '?') + 'pedido=' + encodeURIComponent(id);
-  const pref = {
-    items: lineas.map(l => ({
-      id: l.id, title: `${l.nombre} – ${l.detalle}`.slice(0, 250), quantity: l.cantidad,
-      unit_price: l.precio, currency_id: 'ARS', picture_url: l.imagen || undefined
-    })),
-    payer: { email: u.email, name: env.nombre },
+  const monto = n => (Math.round(Number(n) * 100) / 100).toFixed(2);
+  const items = lineas.map(l => ({
+    title: `${l.nombre} – ${l.detalle}`.slice(0, 250), quantity: l.cantidad,
+    unit_price: monto(l.precio), picture_url: l.imagen || undefined
+  }));
+  if (costoEnvio) items.push({ title: 'Envío por Correo Argentino', quantity: 1, unit_price: monto(costoEnvio) });
+  const orden = {
+    type: 'online',
+    processing_mode: 'manual',            // único valor válido para Checkout Pro
+    capture_mode: 'automatic_async',
     external_reference: id,
-    back_urls: { success: volver, pending: volver, failure: volver },
-    auto_return: 'approved',
-    notification_url: urlWebApp_() + '?action=mp',
-    payment_methods: { installments: TIENDA.CUOTAS_MAX },
-    statement_descriptor: TIENDA.NOMBRE.toUpperCase()
+    description: `${TIENDA.NOMBRE} · Pedido ${id}`,
+    total_amount: monto(total),
+    expiration_time: 'P1D',               // el link de pago vence en 1 día
+    payer: { email: u.email },
+    items,
+    config: { online: { success_url: volver, failure_url: volver, pending_url: volver, auto_return: 'approved' } }
   };
-  if (costoEnvio) pref.shipments = { cost: costoEnvio, mode: 'not_specified' };
 
-  const r = UrlFetchApp.fetch('https://api.mercadopago.com/checkout/preferences', {
+  const r = UrlFetchApp.fetch('https://api.mercadopago.com/v1/orders', {
     method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    headers: { Authorization: 'Bearer ' + token, 'X-Idempotency-Key': id },
-    payload: JSON.stringify(pref)
+    headers: { Authorization: 'Bearer ' + token, 'X-Idempotency-Key': id, Accept: 'application/json' },
+    payload: JSON.stringify(orden)
   });
-  if (r.getResponseCode() >= 300) {
+  const res = (() => { try { return JSON.parse(r.getContentText()); } catch (_) { return {}; } })();
+  if (r.getResponseCode() >= 300 || !res.checkout_url) {
     Logger.log('Mercado Pago respondió ' + r.getResponseCode() + ': ' + r.getContentText());
     actualizarFila_(id, { 'Estado': 'Cancelado', 'Notas': 'Error al crear el cobro en Mercado Pago' });
     throw new Error('Mercado Pago no respondió. Probá de nuevo en unos minutos.');
   }
-  return { ok: true, pedido: id, total, envioACoordinar: costoEnvio == null, url: JSON.parse(r.getContentText()).init_point };
+  actualizarFila_(id, { 'Pago MP': res.id, 'Estado MP': res.status || 'created' });
+  return { ok: true, pedido: id, total, envioACoordinar: costoEnvio == null, url: res.checkout_url };
 }
 
-function estadoPedido_(id, paymentId) {
+function estadoPedido_(id) {
   if (!id) throw new Error('Falta el número de pedido.');
-  if (paymentId && /^\d+$/.test(String(paymentId))) {
-    const pago = obtenerPagoMP_(paymentId);
-    if (pago && pago.external_reference === id) actualizarPedidoConPago_(pago);
-  }
-  const f = buscarPedido_(id);
+  let f = buscarPedido_(id);
   if (!f) throw new Error('No encontramos ese pedido.');
+  const ordenId = String(f.datos['Pago MP'] || '');
+  if (/^ORD/i.test(ordenId)) {
+    const orden = obtenerOrdenMP_(ordenId);
+    if (orden && orden.external_reference === id) { actualizarPedidoConOrden_(orden); f = buscarPedido_(id); }
+  }
   return { pedido: id, estado: f.datos['Estado'], total: f.datos['Total'], envio: f.datos['Envío'] };
 }
 
@@ -312,10 +319,48 @@ function misPedidos_(b) {
 /* ===================== MERCADO PAGO ===================== */
 
 function procesarNotificacionMP_(id, tipo) {
-  if (!id || !/^\d+$/.test(String(id))) return;
-  if (tipo && !/payment/i.test(String(tipo))) return; // solo nos interesan los pagos
-  const pago = obtenerPagoMP_(id);
-  if (pago) actualizarPedidoConPago_(pago);
+  if (!id) return;
+  const t = String(tipo || '');
+  if (/order/i.test(t) || /^ORD/i.test(String(id))) {       // aviso de una orden (API de Orders)
+    const orden = obtenerOrdenMP_(id);
+    if (orden) actualizarPedidoConOrden_(orden);
+    return;
+  }
+  if (/^\d+$/.test(String(id)) && (!t || /payment/i.test(t))) { // aviso de un pago suelto
+    const pago = obtenerPagoMP_(id);
+    if (pago) actualizarPedidoConPago_(pago);
+  }
+}
+
+function obtenerOrdenMP_(id) {
+  const token = prop_('MP_ACCESS_TOKEN');
+  if (!token || !/^[A-Za-z0-9_-]+$/.test(String(id))) return null;
+  const r = UrlFetchApp.fetch('https://api.mercadopago.com/v1/orders/' + encodeURIComponent(id), {
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' }, muteHttpExceptions: true
+  });
+  return r.getResponseCode() === 200 ? JSON.parse(r.getContentText()) : null;
+}
+
+// Traduce la orden de Mercado Pago al formato de pago que ya entiende la tienda
+function actualizarPedidoConOrden_(orden) {
+  const st = String(orden.status || ''), det = String(orden.status_detail || '');
+  let status;
+  if (st === 'processed') status = 'approved';
+  else if (st === 'failed') status = 'rejected';
+  else if (st === 'canceled' || st === 'expired') status = 'cancelled';
+  else if (st === 'refunded') status = 'refunded';
+  else if (st === 'processing' || st === 'action_required') status = 'in_process';
+  else return; // "created": todavía no pagó
+  const pagos = (orden.transactions && orden.transactions.payments) || [];
+  actualizarPedidoConPago_({
+    id: orden.id,
+    status,
+    status_detail: det,
+    external_reference: orden.external_reference,
+    currency_id: 'ARS',
+    transaction_amount: Number(orden.total_paid_amount || (status === 'approved' ? orden.total_amount : 0)),
+    _pagos: pagos.map(p => p.id).join(',')
+  });
 }
 
 function obtenerPagoMP_(id) {
