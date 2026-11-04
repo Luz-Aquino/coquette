@@ -896,3 +896,34 @@ body.bloqueado .whatsapp { z-index: 0; }
 .red svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
 .red span { overflow-wrap: anywhere; }
 .red { max-width: 100%; height: auto; min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
+
+/* ---------- Pie armonioso ---------- */
+.pie { max-width: none; margin: 40px 0 0; padding: 0; border-top: 0; position: relative;
+  background: linear-gradient(180deg, #FBEBED 0%, #F6DDE3 100%); }
+.pie::before { content: ""; position: absolute; left: 0; right: 0; top: -11px; height: 12px;
+  background: radial-gradient(circle at 12px 12px, #FBEBED 11px, transparent 11.5px) 0 0 / 24px 12px repeat-x; }
+.pie-interior { max-width: var(--ancho); margin: 0 auto; padding: 40px var(--gutter) calc(28px + env(safe-area-inset-bottom)); text-align: center; }
+.pie .pie-marca { margin: 0; }
+.pie-lema { margin: 6px 0 0; font: italic 400 15px/1.3 var(--serif); color: var(--gris); }
+.pie-columnas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin: 30px 0 26px; text-align: left; }
+.pie-col { background: rgba(255,255,255,.65); border: 1px solid #F1D3DA; border-radius: 18px; padding: 18px 18px 16px; }
+.pie-col h3 { margin: 0 0 12px; font: 400 26px/1 var(--firma); color: var(--bordo); }
+.pie-col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; color: var(--ciruela); font-size: 14px; line-height: 1.4; }
+.pie-col li { display: flex; gap: 10px; align-items: flex-start; }
+.pie-col li svg, .pie .red svg { width: 18px; height: 18px; flex: 0 0 auto; margin-top: 1px; fill: none; stroke: #B8935A; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.pie .contacto { margin: 0; }
+.pie .redes { flex-direction: column; align-items: stretch; gap: 8px; }
+.pie .red { justify-content: flex-start; border-color: #F1D3DA; }
+.pie-final { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px;
+  margin: 0; padding-top: 18px; border-top: 1px solid #EBC9D1; font-size: 13px; color: var(--gris); }
+.pie-links { display: inline-flex; align-items: center; gap: 10px; }
+.pie-links a { color: var(--bordo); text-decoration: none; font-weight: 500; }
+.pie-links a:hover { text-decoration: underline; }
+.pie-links i { font-style: normal; color: #C9A36A; font-size: 10px; }
+@media (max-width: 820px) {
+  .pie-columnas { grid-template-columns: 1fr; gap: 12px; }
+  .pie-final { justify-content: center; text-align: center; }
+}
+/* Nunca scroll lateral en ningún dispositivo */
+html { overflow-x: hidden; overflow-x: clip; }
+.portada::before { inset: -40px 0 auto; }
