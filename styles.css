@@ -941,3 +941,4 @@ a.social[href]:hover { background: var(--bordo); color: #fff; transform: transla
 .pedido-fotos img { width: 64px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--rosa); box-shadow: 0 0 0 2px #fff, 0 6px 12px -8px rgba(92,18,41,.5); }
 .pedido-mini .progreso-minimo { margin: 12px 0 8px; }
 .pedido-mini .boton { margin-top: 8px; }
+.segmentado { flex-wrap: wrap; max-width: 100%; }

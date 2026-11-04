@@ -61,9 +61,13 @@
   }
 
   /* ---------- Producto ---------- */
+  // Tipos de venta del proveedor: Unidad, Promo x3 (3 prendas) y Pack x6 (6 prendas)
+  const prendasDe = t => t === 'Pack x6' ? 6 : t === 'Promo x3' ? 3 : 1;
+  const ordenTipo = t => prendasDe(t);
+  const nombreTipo = t => t === 'Pack x6' ? 'Pack x6 prendas' : t === 'Promo x3' ? 'Promo x3 prendas' : 'Por unidad';
   function resumenProducto(p) {
     const conStock = p.variantes.filter(v => v.stock);
-    const unidad = conStock.filter(v => v.tipo !== 'Pack x6');
+    const unidad = conStock.filter(v => v.tipo !== 'Pack x6' && v.tipo !== 'Promo x3');
     const pack = conStock.filter(v => v.tipo === 'Pack x6');
     const min = a => a.length ? Math.min(...a.map(v => v.precio)) : null;
     const colores = [...new Set(conStock.map(v => v.color).filter(Boolean))];
@@ -324,7 +328,7 @@
   }
 
   function abrirProducto(p) {
-    const tipos = [...new Set(p.variantes.map(v => v.tipo))].sort((a, b) => (a === 'Pack x6') - (b === 'Pack x6'));
+    const tipos = [...new Set(p.variantes.map(v => v.tipo))].sort((a, b) => ordenTipo(a) - ordenTipo(b));
     const tipoInicial = tipos.find(t => p.variantes.some(v => v.tipo === t && v.stock)) || tipos[0];
     st.sel = { p, tipos, tipo: tipoInicial, color: null, talle: null, cant: 1 };
     ajustarSeleccion();
@@ -383,7 +387,7 @@
     const s = st.sel;
     const v = varianteSel();
     $('#grpTipo').hidden = s.tipos.length < 2;
-    $('#pTipos').innerHTML = s.tipos.map(t => `<button type="button" data-tipo="${esc(t)}" aria-pressed="${t === s.tipo}">${t === 'Pack x6' ? 'Pack x6 prendas' : 'Por unidad'}</button>`).join('');
+    $('#pTipos').innerHTML = s.tipos.map(t => `<button type="button" data-tipo="${esc(t)}" aria-pressed="${t === s.tipo}">${nombreTipo(t)}</button>`).join('');
 
     const deTipo = disponibles(s.tipo);
     const colores = [...new Set(deTipo.map(x => x.color))];
@@ -403,7 +407,8 @@
     }).join('');
 
     $('#pPrecio').textContent = v ? fmt(v.precio) : fmt(s.p._res.desde);
-    $('#pPorPrenda').textContent = v && v.tipo === 'Pack x6' ? `(${fmt(v.precio / 6)} por prenda)` : '';
+    const nPrendas = v ? prendasDe(v.tipo) : 1;
+    $('#pPorPrenda').textContent = nPrendas > 1 ? `(${fmt(v.precio / nPrendas)} por prenda)` : '';
     const agotados = talles.filter(t => t && !deColor.some(x => x.talle === t && x.stock));
     const quedan = talles.filter(t => t && deColor.some(x => x.talle === t && x.stock));
     $('#pUrgencia').hidden = !(agotados.length && quedan.length);
@@ -493,7 +498,7 @@
         <img src="${esc(l.v.imagen || l.p.imagenes[0] || '')}" alt="" referrerpolicy="no-referrer">
         <div>
           <h3>${esc(l.p._nombre)}</h3>
-          <p>${esc([l.v.tipo === 'Pack x6' ? 'Pack x6' : '', nombreLindo(l.v.color), l.v.talle ? 'Talle ' + l.v.talle : ''].filter(Boolean).join(', '))}</p>
+          <p>${esc([prendasDe(l.v.tipo) > 1 ? l.v.tipo : '', nombreLindo(l.v.color), l.v.talle ? 'Talle ' + l.v.talle : ''].filter(Boolean).join(', '))}</p>
           <div class="cantidad" aria-label="Cantidad">
             <button type="button" data-linea="${esc(l.id)}" data-delta="-1" aria-label="Restar uno">−</button>
             <output>${l.cantidad}</output>

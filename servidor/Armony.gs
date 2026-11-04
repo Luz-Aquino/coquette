@@ -15,6 +15,7 @@ const ARMONY = {
   HOJA_ALERTAS: 'Alertas Armony',
   MARGEN_UNIDAD: 2.5, // venta por unidad = costo + 150% (× 2,5)
   MARGEN_PACK: 2,     // venta por pack de 6 = costo × 2
+  MARGEN_PROMO3: 2.5, // promo de 3 prendas = costo × 2,5 (mismo margen que la unidad)
   REDONDEO: 0,      // 0 = sin redondeo. Ej: 100 → redondea hacia arriba a múltiplos de $100
   EMAIL: 'luzaquino84@gmail.com', // a dónde llegan los avisos. Vacío = sin mails
   AVISAR_POR_MAIL: ['AGOTADO', 'Nuevo'], // tipos de alerta que se mandan por mail (todas quedan en la hoja)
@@ -221,8 +222,8 @@ function precio_(prices, campo) {
   return Number(prices[campo]) / Math.pow(10, minor);
 }
 
-// Decide si cada variante es "Unidad" o "Pack x6" y le pone su precio de venta.
-// Es pack si la opción lo dice (6 / pack / curva) o si cuesta 3 veces o más que la más barata del producto.
+// Decide si cada variante es "Unidad", "Promo x3" o "Pack x6" y le pone su precio de venta.
+// Promo x3 si la opción dice "x3" / "promo". Pack si dice 6 / x6 / pack / curva, o si cuesta 3 veces o más que la más barata.
 function definirPrecios_(filas) {
   const c = n => COLUMNAS_ARMONY.indexOf(n);
   const minimo = {};
@@ -233,16 +234,17 @@ function definirPrecios_(filas) {
   filas.forEach(f => {
     const costo = f[c('Costo')];
     const opciones = String(f[c('Otras opciones')] || '');
-    const esPack = /\b6\b|pack|curva|docena|mayor/i.test(opciones) ||
-      (costo !== '' && minimo[f[c('ID Producto')]] && costo >= 3 * minimo[f[c('ID Producto')]]);
-    f[c('Tipo venta')] = esPack ? 'Pack x6' : 'Unidad';
-    f[c('Precio venta')] = precioVenta_(costo, esPack);
+    const esPromo3 = /x\s*3\b|\bpromo\b|\b3\s*(prendas|unidades)/i.test(opciones);
+    const esPack = !esPromo3 && (/\b6\b|x\s*6|pack|curva|docena|mayor/i.test(opciones) ||
+      (costo !== '' && minimo[f[c('ID Producto')]] && costo >= 3 * minimo[f[c('ID Producto')]]));
+    f[c('Tipo venta')] = esPromo3 ? 'Promo x3' : esPack ? 'Pack x6' : 'Unidad';
+    f[c('Precio venta')] = precioVenta_(costo, esPack, esPromo3);
   });
 }
 
-function precioVenta_(costo, esPack) {
+function precioVenta_(costo, esPack, esPromo3) {
   if (costo === '' || isNaN(costo)) return '';
-  let v = costo * (esPack ? ARMONY.MARGEN_PACK : ARMONY.MARGEN_UNIDAD);
+  let v = costo * (esPromo3 ? ARMONY.MARGEN_PROMO3 : esPack ? ARMONY.MARGEN_PACK : ARMONY.MARGEN_UNIDAD);
   if (ARMONY.REDONDEO > 0) v = Math.ceil(v / ARMONY.REDONDEO) * ARMONY.REDONDEO;
   return v;
 }
