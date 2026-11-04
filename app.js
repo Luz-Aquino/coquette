@@ -753,15 +753,17 @@
     const si = !!st.sesion && await esDuena(st.sesion.email);
     st.duena = si;
     document.body.classList.toggle('duena', si);
-    $('#btnPanel').hidden = !si;
-    $('#btnCuenta').hidden = si; // la dueña ve solo "Mi panel"; las clientas ven "Ingresar" / su nombre
+    $('#menuPanel').hidden = !si;
+    if (st.sesion) $('#btnCuenta').textContent = (si ? 'Mi panel' : (st.sesion.nombre || st.sesion.email).split(' ')[0]) + ' ▾';
     if (si) {
       try { localStorage.setItem('coquet_admin_desde_tienda', JSON.stringify({ token: st.sesion.token, email: st.sesion.email, exp: st.sesion.exp })); } catch (_) {}
     }
   }
   function tras_sesion() {
     const b = $('#btnCuenta');
-    b.textContent = st.sesion ? (st.sesion.nombre || st.sesion.email).split(' ')[0] : 'Ingresar';
+    b.textContent = st.sesion ? (st.sesion.nombre || st.sesion.email).split(' ')[0] + ' ▾' : 'Ingresar';
+    $('#menuEmail').textContent = st.sesion ? st.sesion.email : '';
+    if (!st.sesion) cerrarMenuCuenta();
     b.setAttribute('aria-label', st.sesion ? 'Tu cuenta' : 'Ingresar con Google');
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
@@ -1034,7 +1036,19 @@
   $('#formCompra').addEventListener('submit', e => { e.preventDefault(); pagar(); });
   $('#pasoCompra').addEventListener('click', e => { if (e.target.id === 'cambiarCuenta') cerrarSesion(); });
 
-  $('#btnCuenta').addEventListener('click', () => { if (!st.sesion && !DEMO) location.href = 'login.html?volver=cuenta'; else abrirCuenta(); });
+  // Menú de la cuenta: Mi panel (solo la dueña), Mis pedidos y Salir
+  function cerrarMenuCuenta() { $('#menuCuenta').hidden = true; $('#btnCuenta').setAttribute('aria-expanded', 'false'); }
+  $('#btnCuenta').addEventListener('click', e => {
+    if (!st.sesion && !DEMO) { location.href = 'login.html?volver=cuenta'; return; }
+    if (!st.sesion) { abrirCuenta(); return; }
+    e.stopPropagation();
+    const m = $('#menuCuenta'); m.hidden = !m.hidden;
+    $('#btnCuenta').setAttribute('aria-expanded', String(!m.hidden));
+  });
+  document.addEventListener('click', e => { if (!e.target.closest('.cuenta-caja')) cerrarMenuCuenta(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarMenuCuenta(); });
+  $('#menuPedidos').addEventListener('click', () => { cerrarMenuCuenta(); abrirCuenta(); });
+  $('#menuSalir').addEventListener('click', () => { cerrarMenuCuenta(); cerrarSesion(); });
   $('#linkMisPedidos').addEventListener('click', e => { e.preventDefault(); abrirCuenta(); });
 
   document.addEventListener('error', e => {
