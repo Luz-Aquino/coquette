@@ -261,7 +261,7 @@ function definirPrecios_(filas) {
   const grupos = {};
   filas.forEach(f => {
     const costo = f[c('Costo')];
-    if (costo === '' || isNaN(costo) || f[c('Tipo venta')] === 'Revisar') return;
+    if (costo === '' || isNaN(costo) || Number(costo) <= 0 || f[c('Tipo venta')] === 'Revisar') return;
     const k = f[c('ID Producto')] + '|' + f[c('Tipo venta')];
     (grupos[k] = grupos[k] || []).push(Number(costo));
   });
@@ -272,7 +272,8 @@ function definirPrecios_(filas) {
     const tipo = f[c('Tipo venta')], costo = Number(f[c('Costo')]), id = f[c('ID Producto')];
     let motivo = '';
     if (tipo === 'Revisar') motivo = 'Opción de venta desconocida';
-    else if (f[c('Costo')] !== '' && !isNaN(costo)) {
+    else if (f[c('Costo')] === '' || isNaN(costo) || costo <= 0) { f[c('Precio venta')] = ''; return; } // sin precio: no se vende
+    else {
       const g = grupos[id + '|' + tipo] || [];
       const med = g.length >= 3 ? mediana(g) : null;
       if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio muy distinto al resto (${tipo}: $${costo} y lo normal es $${med})`;
@@ -304,7 +305,7 @@ function alertasRevisar_(filas) {
 }
 
 function precioVenta_(costo, esPack, esPromo3) {
-  if (costo === '' || isNaN(costo)) return '';
+  if (costo === '' || isNaN(costo) || Number(costo) <= 0) return '';
   let v = costo * (esPromo3 ? ARMONY.MARGEN_PROMO3 : esPack ? ARMONY.MARGEN_PACK : ARMONY.MARGEN_UNIDAD);
   if (ARMONY.REDONDEO > 0) v = Math.ceil(v / ARMONY.REDONDEO) * ARMONY.REDONDEO;
   return v;
