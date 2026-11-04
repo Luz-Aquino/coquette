@@ -5,5 +5,7 @@ window.COQUET_CONFIG = {
   GOOGLE_CLIENT_ID: '468284812442-1lkcvjgo52rjcknkrf53p07t41vi69t9.apps.googleusercontent.com', // ID de cliente OAuth de Google (termina en .apps.googleusercontent.com)
   NOMBRE: 'Coquette',
   MINIMO_COMPRA: 100000, // compra mínima en productos (sin envío)
-  WHATSAPP: '' // número con código de país, ej: '5491122334455'. Vacío = sin botón
+  WHATSAPP: '', // número con código de país, ej: '5491122334455'. Vacío = sin botón
+  DESCUENTO: { CODIGO: 'HOLA10', PORCENTAJE: 10 }, // solo para mostrar; el servidor es quien lo valida
+  CAMBIOS_DIAS: 0 // días para cambios (0 = no se muestra)
 };

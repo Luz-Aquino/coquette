@@ -17,8 +17,15 @@ const TIENDA = {
   CUOTAS_MAX: 12,          // máximo de cuotas que ofrece Mercado Pago
   MINIMO_COMPRA: 100000,   // compra mínima en productos (sin envío)
   CACHE_MIN: 10,           // minutos que se guarda el catálogo en memoria
-  ZONA_HORARIA: 'America/Argentina/Buenos_Aires'
+  ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
+  HOJA_CARRITOS: 'Carritos',
+  DESCUENTO_CODIGO: 'HOLA10',   // código de primera compra (vacío = sin descuento)
+  DESCUENTO_PORC: 10,           // % de descuento sobre los productos
+  AVISO_CARRITO_HORAS: 24       // horas sin comprar antes de mandar el recordatorio
 };
+
+const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
+const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 
 const COLUMNAS_PEDIDOS = [
   'Pedido', 'Fecha', 'Estado', 'Email', 'Cliente', 'Teléfono', 'DNI', 'Envío', 'Dirección',
@@ -64,6 +71,8 @@ function doPost(e) {
     switch (body.action) {
       case 'crearPedido': return json_(crearPedido_(body));
       case 'misPedidos': return json_(misPedidos_(body));
+      case 'guardarCarrito': return json_(guardarCarrito_(body));
+      case 'validarCodigo': return json_(validarCodigo_(body));
       case 'admin': return json_(admin_(body));
       default: return json_({ error: 'Acción desconocida.' });
     }
@@ -231,8 +240,19 @@ function crearPedido_(b) {
       precio: v.precio, imagen: v.imagen, link: v.link
     };
   });
-  const subtotal = lineas.reduce((s, l) => s + l.precio * l.cantidad, 0);
-  if (subtotal < TIENDA.MINIMO_COMPRA) throw new Error(`La compra mínima es de $${fmt_(TIENDA.MINIMO_COMPRA)}. Te faltan $${fmt_(TIENDA.MINIMO_COMPRA - subtotal)}.`);
+  const bruto = lineas.reduce((s, l) => s + l.precio * l.cantidad, 0);
+  if (bruto < TIENDA.MINIMO_COMPRA) throw new Error(`La compra mínima es de $${fmt_(TIENDA.MINIMO_COMPRA)}. Te faltan $${fmt_(TIENDA.MINIMO_COMPRA - bruto)}.`);
+
+  // Código de primera compra: baja el precio de cada prenda (así Mercado Pago cobra el total con descuento)
+  let notaDescuento = '';
+  if (b.codigo) {
+    codigoValido_(b.codigo, u.email); // tira error si no corresponde
+    const f = 1 - TIENDA.DESCUENTO_PORC / 100;
+    lineas.forEach(l => { l.precioLista = l.precio; l.precio = Math.round(l.precio * f * 100) / 100; });
+    notaDescuento = `Código ${TIENDA.DESCUENTO_CODIGO} (${TIENDA.DESCUENTO_PORC}% off)`;
+  }
+  const subtotal = Math.round(lineas.reduce((s, l) => s + l.precio * l.cantidad, 0) * 100) / 100;
+  const descuento = Math.round((bruto - subtotal) * 100) / 100;
 
   // 2) Datos de envío
   const e = b.envio || {};
@@ -258,7 +278,7 @@ function crearPedido_(b) {
     'Envío': 'Correo Argentino a ' + env.metodo + (costoEnvio == null ? ' (a coordinar)' : ''),
     'Dirección': env.direccion, 'Ciudad': env.ciudad, 'Provincia': env.provincia, 'CP': env.cp,
     'Productos': resumen, 'Subtotal': subtotal, 'Costo envío': costoEnvio == null ? '' : costoEnvio, 'Total': total,
-    'Pago MP': '', 'Estado MP': '', 'Seguimiento': '', 'Notas': '', 'Items': JSON.stringify(lineas), 'Mail pago': ''
+    'Pago MP': '', 'Estado MP': '', 'Seguimiento': '', 'Notas': notaDescuento ? `${notaDescuento}: -$${fmt_(descuento)}` : '', 'Items': JSON.stringify(lineas), 'Mail pago': ''
   };
   conLock_(() => hojaPedidos_().appendRow(COLUMNAS_PEDIDOS.map(c => fila[c] === undefined ? '' : fila[c])));
 
@@ -295,7 +315,8 @@ function crearPedido_(b) {
     throw new Error('Mercado Pago no respondió. Probá de nuevo en unos minutos.');
   }
   actualizarFila_(id, { 'Pago MP': res.id, 'Estado MP': res.status || 'created' });
-  return { ok: true, pedido: id, total, envioACoordinar: costoEnvio == null, url: res.checkout_url };
+  try { borrarCarrito_(u.email); } catch (_) {}
+  return { ok: true, pedido: id, total, descuento, envioACoordinar: costoEnvio == null, url: res.checkout_url };
 }
 
 function estadoPedido_(id) {
@@ -474,6 +495,7 @@ function mailVentaAdmin_(d) {
       tablaItems_(items, d) +
       `<p><b>Comprar a Armony:</b></p><ul>${compra}</ul>` +
       `<p><b>Envío:</b> ${esc_(d['Envío'])}<br>${esc_([d['Dirección'], d['Ciudad'], d['Provincia'], d['CP']].filter(Boolean).join(', '))}</p>` +
+      (d['Notas'] ? `<p><b>Descuento:</b> ${esc_(d['Notas'])}</p>` : '') +
       `<p>Pago Mercado Pago n° ${esc_(d['Pago MP'])}</p>`)
   });
 }
@@ -504,6 +526,108 @@ function tablaItems_(items, d) {
 
 function itemsDe_(d) {
   try { return JSON.parse(d['Items'] || '[]'); } catch (_) { return []; }
+}
+
+/* ===================== DESCUENTO PRIMERA COMPRA ===================== */
+
+function yaCompro_(email) {
+  return leerPedidos_().some(p => String(p['Email']).toLowerCase() === email && ESTADOS_COMPRADOS.indexOf(p['Estado']) >= 0);
+}
+
+function codigoValido_(codigo, email) {
+  const c = String(codigo || '').trim().toUpperCase();
+  if (!TIENDA.DESCUENTO_CODIGO || c !== TIENDA.DESCUENTO_CODIGO.toUpperCase()) throw new Error('Ese código no existe.');
+  if (yaCompro_(email)) throw new Error('Este código es solo para tu primera compra.');
+  return true;
+}
+
+function validarCodigo_(b) {
+  const u = verificarUsuario_(b.idToken);
+  codigoValido_(b.codigo, u.email);
+  return { ok: true, codigo: TIENDA.DESCUENTO_CODIGO, porcentaje: TIENDA.DESCUENTO_PORC };
+}
+
+/* ===================== CARRITOS ABANDONADOS ===================== */
+
+function hojaCarritos_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let h = ss.getSheetByName(TIENDA.HOJA_CARRITOS);
+  if (!h) {
+    h = ss.insertSheet(TIENDA.HOJA_CARRITOS);
+    h.getRange(1, 1, 1, COLUMNAS_CARRITOS.length).setValues([COLUMNAS_CARRITOS]).setFontWeight('bold');
+    h.setFrozenRows(1);
+  }
+  return h;
+}
+
+function filaCarrito_(h, email) {
+  if (h.getLastRow() < 2) return 0;
+  const emails = h.getRange(2, 1, h.getLastRow() - 1, 1).getValues();
+  for (let i = 0; i < emails.length; i++) if (String(emails[i][0]).toLowerCase() === email) return i + 2;
+  return 0;
+}
+
+function borrarCarrito_(email) {
+  conLock_(() => { const h = hojaCarritos_(); const f = filaCarrito_(h, email); if (f) h.deleteRow(f); });
+}
+
+// La tienda manda el carrito de la clienta (solo si inició sesión)
+function guardarCarrito_(b) {
+  const u = verificarUsuario_(b.idToken);
+  const items = (Array.isArray(b.items) ? b.items : []).filter(x => x && x.id && Number(x.cantidad) > 0).slice(0, 40)
+    .map(x => ({ id: String(x.id), cantidad: Math.min(20, Math.floor(Number(x.cantidad))) }));
+  if (!items.length) { borrarCarrito_(u.email); return { ok: true }; }
+  const vars = {};
+  leerVariantes_().forEach(v => { vars[v.clave] = v; });
+  const total = items.reduce((s, x) => s + (vars[x.id] ? vars[x.id].precio * x.cantidad : 0), 0);
+  conLock_(() => {
+    const h = hojaCarritos_();
+    const f = filaCarrito_(h, u.email);
+    const fila = [u.email, u.nombre, JSON.stringify(items), total, new Date(), ''];
+    if (f) h.getRange(f, 1, 1, fila.length).setValues([fila]); else h.appendRow(fila);
+  });
+  return { ok: true };
+}
+
+// Ejecutar UNA vez: revisa cada hora los carritos y manda el recordatorio
+function instalarAvisosCarrito() {
+  ScriptApp.getProjectTriggers().filter(t => t.getHandlerFunction() === 'avisarCarritos').forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('avisarCarritos').timeBased().everyHours(1).create();
+  hojaCarritos_();
+  Logger.log('Listo: los recordatorios de carrito se revisan cada hora ✔');
+}
+
+function avisarCarritos() {
+  const h = hojaCarritos_();
+  if (h.getLastRow() < 2) return;
+  const datos = h.getRange(2, 1, h.getLastRow() - 1, COLUMNAS_CARRITOS.length).getValues();
+  const ahora = Date.now(), espera = TIENDA.AVISO_CARRITO_HORAS * 3600e3, maximo = 7 * 24 * 3600e3;
+  const vars = {};
+  leerVariantes_().forEach(v => { vars[v.clave] = v; });
+  const site = prop_('SITE_URL');
+  let enviados = 0;
+  datos.forEach((f, i) => {
+    const [email, nombre, itemsTxt, , actualizado, avisado] = f;
+    const t = actualizado instanceof Date ? actualizado.getTime() : 0;
+    if (!email || avisado || !t || ahora - t < espera || ahora - t > maximo) return;
+    if (enviados >= 20 || MailApp.getRemainingDailyQuota() < 5) return;
+    let items = [];
+    try { items = JSON.parse(itemsTxt || '[]'); } catch (_) {}
+    const lineas = items.map(x => vars[x.id]).filter(v => v && v.stock !== 'Agotado');
+    if (!lineas.length) { h.getRange(i + 2, 6).setValue('Sin stock'); return; }
+    const primera = !yaCompro_(String(email).toLowerCase());
+    const filas = lineas.slice(0, 6).map(v => `<tr><td style="padding:6px 10px 6px 0" width="70">${v.imagen ? `<img src="${esc_(v.imagen)}" width="64" style="border-radius:8px;display:block">` : ''}</td><td>${esc_(v.producto)}<br><small style="color:#7a6670">${esc_([v.color, v.talle].filter(Boolean).join(' · '))}</small></td><td align="right">$${fmt_(v.precio)}</td></tr>`).join('');
+    const promo = primera && TIENDA.DESCUENTO_CODIGO ? `<p style="background:#FBEBED;padding:12px;border-radius:10px">Como es tu primera compra, usá el código <b>${TIENDA.DESCUENTO_CODIGO}</b> y tenés <b>${TIENDA.DESCUENTO_PORC}% off</b>.</p>` : '';
+    MailApp.sendEmail({
+      to: email, name: TIENDA.NOMBRE,
+      subject: `${(String(nombre).split(' ')[0] || 'Hola')}, tus prendas te esperan ♡`,
+      htmlBody: plantillaMail_('Dejaste algo lindo en tu carrito', `<p>Guardamos tu carrito para que no te lo pierdas.</p>
+        <table width="100%" style="border-collapse:collapse;font-size:14px">${filas}</table>${promo}
+        <p style="text-align:center;margin:24px 0"><a href="${esc_(site)}" style="background:#7A1F3D;color:#fff;padding:12px 26px;border-radius:24px;text-decoration:none;font-weight:bold">Terminar mi compra</a></p>`)
+    });
+    h.getRange(i + 2, 6).setValue(new Date());
+    enviados++;
+  });
 }
 
 /* ===================== AYUDANTES ===================== */

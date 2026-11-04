@@ -17,6 +17,7 @@
     cat: null, productos: [], porId: {}, filtro: 'todo', q: '', orden: 'reco', color: null, talle: null,
     carrito: leer('coquet_carrito', []),
     favs: new Set(leer('coquet_favs', [])),
+    codigo: null,
     sesion: null, sel: null, paso: 'carrito', enviando: false
   };
 
@@ -403,6 +404,10 @@
 
     $('#pPrecio').textContent = v ? fmt(v.precio) : fmt(s.p._res.desde);
     $('#pPorPrenda').textContent = v && v.tipo === 'Pack x6' ? `(${fmt(v.precio / 6)} por prenda)` : '';
+    const agotados = talles.filter(t => t && !deColor.some(x => x.talle === t && x.stock));
+    const quedan = talles.filter(t => t && deColor.some(x => x.talle === t && x.stock));
+    $('#pUrgencia').hidden = !(agotados.length && quedan.length);
+    if (agotados.length && quedan.length) $('#pUrgencia').textContent = `Se agotó el talle ${agotados.map(nombreLindo).join(', ')} en este color. ${quedan.length === 1 ? 'Queda solo el talle ' + nombreLindo(quedan[0]) : 'Quedan: ' + quedan.map(nombreLindo).join(', ')}.`;
     $('#cant').textContent = s.cant;
     const ok = v && v.stock;
     $('#agregar').disabled = !ok;
@@ -441,6 +446,7 @@
     c.hidden = n === 0;
     c.textContent = n;
     const cn = $('#navCarritoN'); if (cn) { cn.hidden = n === 0; cn.textContent = n; }
+    sincronizarCarrito();
     c.classList.remove('salta'); void c.offsetWidth; c.classList.add('salta');
     $('#btnCarrito').setAttribute('aria-label', n ? `Carrito, ${n} ${n === 1 ? 'producto' : 'productos'}` : 'Carrito');
     if ($('#dlgCarrito').open) pintarCarrito();
@@ -450,6 +456,15 @@
     st.carrito = st.carrito.filter(l => st.variantes[l.id] && st.variantes[l.id].v.stock);
     if (st.carrito.length < antes) tostada('Quitamos del carrito productos que se agotaron.');
     guardarCarrito();
+  }
+  // Si inició sesión, el carrito se guarda también en la tienda (para el recordatorio por mail)
+  let tSync;
+  function sincronizarCarrito() {
+    clearTimeout(tSync);
+    if (DEMO || !CFG.API_URL || !st.sesion || sesionVencida()) return;
+    tSync = setTimeout(() => {
+      post({ action: 'guardarCarrito', idToken: st.sesion.token, items: st.carrito.map(l => ({ id: l.id, cantidad: l.cantidad })) }).catch(() => {});
+    }, 2500);
   }
   const subtotal = () => lineasCarrito().reduce((s, l) => s + l.v.precio * l.cantidad, 0);
 
@@ -489,10 +504,14 @@
       </li>`).join('');
     const sub = subtotal();
     $('#tSubtotal').textContent = fmt(sub);
+    const desc = st.codigo && st.paso === 'compra' ? Math.round(sub * st.codigo.porcentaje) / 100 : 0;
+    $('#filaDescuento').hidden = !desc;
+    if (desc) { $('#tDescuentoNom').textContent = `Descuento ${st.codigo.codigo}`; $('#tDescuento').textContent = '−' + fmt(desc); }
+    pintarLook(lineas);
     const env = st.paso === 'compra' ? envioActual() : null;
     $('#filaEnvio').hidden = !env;
     if (env) $('#tEnvio').textContent = env.costo == null ? 'A coordinar' : fmt(env.costo);
-    $('#tTotal').textContent = fmt(sub + (env && env.costo ? env.costo : 0));
+    $('#tTotal').textContent = fmt(sub - desc + (env && env.costo ? env.costo : 0));
     const btn = $('#btnSeguir');
     const minimo = Number(CFG.MINIMO_COMPRA) || 0;
     const falta = Math.max(0, minimo - sub);
@@ -510,6 +529,22 @@
     else if (st.paso === 'carrito') { btn.textContent = 'Finalizar compra'; btn.disabled = false; }
     else if (!st.sesion) { btn.textContent = 'Ingresá para continuar'; btn.disabled = true; }
     else if (!st.enviando) { btn.textContent = DEMO ? 'Pagar con Mercado Pago (demo)' : 'Pagar con Mercado Pago'; btn.disabled = false; }
+  }
+
+  // "Completá el look": prendas de otras categorías que combinan con lo del carrito
+  function pintarLook(lineas) {
+    const caja = $('#look');
+    if (!lineas.length || st.paso !== 'carrito') { caja.hidden = true; return; }
+    const enCarrito = new Set(lineas.map(l => l.p.id));
+    const cats = new Set(lineas.flatMap(l => l.p.categorias.filter(esPrincipal)));
+    const ok = x => !enCarrito.has(x.id) && x.variantes.some(v => v.stock);
+    let lista = st.productos.filter(x => ok(x) && !x.categorias.some(c => cats.has(c)));
+    if (lista.length < 3) lista = lista.concat(st.productos.filter(x => ok(x) && lista.indexOf(x) < 0));
+    lista = lista.slice(0, 4);
+    caja.hidden = !lista.length;
+    $('#lookLista').innerHTML = lista.map(x => `<a class="look-item" href="#p-${esc(x.id)}">
+        <img src="${esc(x.imagenes[0] || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <span>${esc(x._nombre)}</span><b>${fmt(x._res.desde)}</b></a>`).join('');
   }
 
   /* ---------- Compra ---------- */
@@ -586,7 +621,7 @@
         mostrarPedido('demo', 'CQDEMO-0001');
         return;
       }
-      const r = await post({ action: 'crearPedido', idToken: st.sesion.token, items: st.carrito.map(l => ({ id: l.id, cantidad: l.cantidad })), envio });
+      const r = await post({ action: 'crearPedido', idToken: st.sesion.token, items: st.carrito.map(l => ({ id: l.id, cantidad: l.cantidad })), envio, codigo: st.codigo ? st.codigo.codigo : '' });
       if (r.error) throw new Error(r.error);
       guardar('coquet_ultimo_pedido', r.pedido);
       location.href = r.url;
@@ -669,6 +704,7 @@
     b.setAttribute('aria-label', st.sesion ? 'Tu cuenta' : 'Ingresar con Google');
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
+    sincronizarCarrito();
   }
 
   let googleListo = false;
@@ -792,6 +828,23 @@
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
+  $('#lookLista').addEventListener('click', e => { if (e.target.closest('a')) cerrar($('#dlgCarrito')); });
+  $('#formCodigo').addEventListener('submit', async e => {
+    e.preventDefault();
+    const cod = $('#codigo').value.trim().toUpperCase(), msj = $('#codigoMsj');
+    if (!cod) return;
+    msj.hidden = false; msj.className = 'codigo-msj'; msj.textContent = 'Revisando…';
+    try {
+      let r;
+      if (DEMO || !CFG.API_URL) r = cod === String((CFG.DESCUENTO || {}).CODIGO || '').toUpperCase() ? { ok: true, codigo: cod, porcentaje: CFG.DESCUENTO.PORCENTAJE } : { error: 'Ese código no existe.' };
+      else if (!st.sesion || sesionVencida()) r = { error: 'Ingresá con Google para usar el código.' };
+      else r = await post({ action: 'validarCodigo', idToken: st.sesion.token, codigo: cod });
+      if (r.error) throw new Error(r.error);
+      st.codigo = { codigo: r.codigo, porcentaje: r.porcentaje };
+      msj.classList.add('ok'); msj.textContent = `¡Listo! ${r.porcentaje}% off aplicado.`;
+    } catch (err) { st.codigo = null; msj.classList.add('mal'); msj.textContent = err.message; }
+    pintarCarrito();
+  });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-fav]'); if (!b) return;
     e.preventDefault(); e.stopPropagation(); alternarFav(b.dataset.fav);
@@ -956,6 +1009,16 @@
     setTimeout(escribirFirma, 250);
   });
   window.addEventListener('pageshow', e => { if (e.persisted) escribirFirma(); });
+
+  // Recordatorio suave si dejó prendas en el carrito
+  setTimeout(() => {
+    const n = st.carrito.reduce((a, l) => a + l.cantidad, 0);
+    if (n && !$$('dialog').some(d => d.open) && !new URL(location.href).searchParams.get('pedido'))
+      tostada(n === 1 ? 'Tenés 1 prenda esperándote en el carrito' : `Tenés ${n} prendas esperándote en el carrito`, 'Ver', abrirCarrito);
+  }, 2500);
+
+  const dias = Number(CFG.CAMBIOS_DIAS) || 0;
+  if (dias) { $('#confCambios').hidden = false; $('#confCambios span').textContent = `Cambios dentro de los ${dias} días`; }
 
   /* ---------- Inicio ---------- */
   escribirFirma();

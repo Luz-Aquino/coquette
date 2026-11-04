@@ -854,3 +854,32 @@ body.bloqueado .whatsapp { z-index: 0; }
 }
 .ficha-info, .relacionados { min-width: 0; }
 .hoja-contenido { overflow-x: hidden; }
+
+/* ---------- Urgencia por talle ---------- */
+.urgencia { margin: 8px 0 0; font-size: 13px; color: #A0452E; }
+
+/* ---------- Completá el look ---------- */
+.look { margin-top: 18px; padding: 14px; border-radius: 14px; background: #FBEBED; }
+.look h3 { margin: 0 0 10px; font: 400 26px/1.1 var(--firma); color: var(--bordo); }
+.look-lista { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.look-item { text-decoration: none; color: inherit; min-width: 0; }
+.look-item img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 9px; background: #fff; box-shadow: 0 0 0 2px #fff; }
+.look-item span { display: block; margin-top: 5px; font: italic 400 12.5px/1.2 var(--serif); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.look-item b { font-size: 12px; color: var(--bordo); }
+
+/* ---------- Código de descuento ---------- */
+.form-codigo { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linea); }
+.form-codigo label { font-size: 14px; font-weight: 600; }
+.codigo-fila { display: flex; gap: 8px; margin-top: 8px; }
+.codigo-fila input { flex: 1; min-width: 0; text-transform: uppercase; }
+.codigo-msj { margin: 6px 0 0; font-size: 13px; color: var(--gris); }
+.codigo-msj.ok { color: #2E7D4F; } .codigo-msj.mal { color: #B3261E; }
+#filaDescuento dd { color: #2E7D4F; font-weight: 600; }
+
+/* ---------- Confianza ---------- */
+.confianza { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; }
+.confianza li { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--gris); justify-content: center; }
+.confianza svg { width: 17px; height: 17px; fill: none; stroke: #2E7D4F; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.codigo-fila input { height: 48px; padding: 0 14px; border-radius: 10px; border: var(--borde); background: #fff; font-size: 16px; }
+.codigo-fila input:focus { border-color: var(--bordo); outline: none; box-shadow: 0 0 0 3px rgba(122,31,61,.14); }
+.codigo-fila .boton { height: 48px; }
