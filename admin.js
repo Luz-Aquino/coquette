@@ -40,7 +40,7 @@
     cargarPublicaciones(true);
   }
   function salir() {
-    try { sessionStorage.removeItem('coquet_admin'); } catch (_) {}
+    try { sessionStorage.removeItem('coquet_admin'); localStorage.removeItem('coquet_admin_desde_tienda'); } catch (_) {}
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
     location.reload();
   }
@@ -49,6 +49,7 @@
   function iniciar() {
     let ses = null;
     try { ses = JSON.parse(sessionStorage.getItem('coquet_admin')); } catch (_) {}
+    if (!ses || ses.exp * 1000 < Date.now() + 60000) { try { ses = JSON.parse(localStorage.getItem('coquet_admin_desde_tienda')); } catch (_) {} }
     if (ses && ses.exp * 1000 > Date.now() + 60000) { ingresar(ses.token); }
     if (DEMO || !CFG.GOOGLE_CLIENT_ID) {
       $('#googleAdmin').innerHTML = '<button class="boton principal">Entrar al panel de demostración</button>';
@@ -77,7 +78,7 @@
     } catch (e) {
       error(e.message);
       $('#lista').innerHTML = '';
-      try { sessionStorage.removeItem('coquet_admin'); } catch (_) {}
+      try { sessionStorage.removeItem('coquet_admin'); localStorage.removeItem('coquet_admin_desde_tienda'); } catch (_) {}
       return false;
     }
   }

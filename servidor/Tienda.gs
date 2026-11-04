@@ -760,12 +760,22 @@ function verificarUsuario_(idToken) {
   if (!idToken) throw new Error('Iniciá sesión con Google para continuar.');
   const cid = prop_('GOOGLE_CLIENT_ID');
   if (!cid) throw new Error('La tienda todavía no tiene el inicio de sesión configurado.');
+  // Una sesión ya verificada se recuerda unos minutos (evita consultar a Google en cada clic: todo más rápido)
+  let claveCache = '';
+  try {
+    claveCache = 'tok_' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, idToken)).slice(0, 40);
+    const c = CacheService.getScriptCache().get(claveCache);
+    if (c) return JSON.parse(c);
+  } catch (_) { claveCache = ''; }
   const r = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), { muteHttpExceptions: true });
   if (r.getResponseCode() !== 200) throw new Error('Tu sesión venció. Volvé a iniciar sesión.');
   const t = JSON.parse(r.getContentText());
   if (t.aud !== cid) throw new Error('Sesión no válida. Volvé a iniciar sesión.');
   if (String(t.email_verified) !== 'true') throw new Error('Tu cuenta de Google no tiene el email verificado.');
-  return { email: String(t.email).toLowerCase(), nombre: t.name || '' };
+  const u = { email: String(t.email).toLowerCase(), nombre: t.name || '' };
+  const quedan = Math.floor(Number(t.exp || 0) - Date.now() / 1000) - 60;
+  if (claveCache && quedan > 60) { try { CacheService.getScriptCache().put(claveCache, JSON.stringify(u), Math.min(quedan, 1800)); } catch (_) {} }
+  return u;
 }
 
 function hojaPedidos_() {

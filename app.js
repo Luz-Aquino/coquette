@@ -427,6 +427,7 @@
   }
 
   function agregarAlCarrito() {
+    if (st.duena) { tostada('Estás como dueña: para comprar, entrá con otra cuenta.'); return; }
     const s = st.sel, v = varianteSel();
     if (!v || !v.stock) return;
     const linea = st.carrito.find(l => l.id === v.id);
@@ -474,6 +475,7 @@
   const subtotal = () => lineasCarrito().reduce((s, l) => s + l.v.precio * l.cantidad, 0);
 
   function abrirCarrito() {
+    if (st.duena) { location.href = 'admin.html'; return; }
     irPaso('carrito');
     abrir($('#dlgCarrito'));
   }
@@ -703,13 +705,36 @@
     tras_sesion();
     if (!silencioso) tostada('Cerraste sesión.');
   }
+  // Modo dueña: si entra Luz, ve "Mi panel" y no tiene carrito
+  async function esDuena(email) {
+    try {
+      const h = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email).trim().toLowerCase())))).map(b => b.toString(16).padStart(2, '0')).join('');
+      return (CFG.DUENA_HASH || []).indexOf(h) >= 0;
+    } catch (_) { return false; }
+  }
+  async function aplicarModoDuena() {
+    const si = !!st.sesion && await esDuena(st.sesion.email);
+    st.duena = si;
+    document.body.classList.toggle('duena', si);
+    $('#btnPanel').hidden = !si;
+    $('#btnCuenta').hidden = si;
+    if (si) {
+      st.carrito = []; guardar('coquet_carrito', []);
+      const c = $('#contador'); c.hidden = true;
+      try { localStorage.setItem('coquet_admin_desde_tienda', JSON.stringify({ token: st.sesion.token, email: st.sesion.email, exp: st.sesion.exp })); } catch (_) {}
+    }
+  }
   function tras_sesion() {
     const b = $('#btnCuenta');
     b.textContent = st.sesion ? (st.sesion.nombre || st.sesion.email).split(' ')[0] : 'Ingresar';
     b.setAttribute('aria-label', st.sesion ? 'Tu cuenta' : 'Ingresar con Google');
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
-    if (st.carrito.length) sincronizarCarrito(); else recuperarCarrito();
+    aplicarModoDuena().then(() => {
+      if (st.duena) return;
+      if (st.carrito.length) sincronizarCarrito(); else recuperarCarrito();
+      if (st.sesion && !DEMO && CFG.API_URL && !sesionVencida() && !pedirPedidos.promesa) pedirPedidos().catch(() => {});
+    });
   }
 
   let googleListo = false;
@@ -812,6 +837,8 @@
     } catch (_) {}
   }
 
+  // Se piden por adelantado al iniciar sesión, así "Mis pedidos" abre al instante
+  function pedirPedidos() { pedirPedidos.promesa = post({ action: 'misPedidos', idToken: st.sesion.token }); return pedirPedidos.promesa; }
   async function pintarCuenta() {
     const dentro = !!st.sesion;
     $('#cuentaFuera').hidden = dentro;
@@ -822,13 +849,18 @@
     const cont = $('#misPedidos');
     if (DEMO) { cont.innerHTML = '<p>Todavía no hiciste pedidos.</p>'; return; }
     if (sesionVencida()) { cerrarSesion(true); return; }
-    cont.innerHTML = '<p>Buscando tus pedidos…</p>';
+    const enCache = leer('coquet_mis_pedidos', null);
+    const pintarLista = ps => { st.misPedidos = ps; cont.innerHTML = ps.length ? ps.map(pedidoHtml).join('') : '<p>Todavía no hiciste pedidos.</p>'; };
+    if (enCache && enCache.email === st.sesion.email) pintarLista(enCache.pedidos);
+    else cont.innerHTML = '<div class="cargando-pedidos"><i></i><i></i><i></i></div>';
     try {
-      const r = await post({ action: 'misPedidos', idToken: st.sesion.token });
+      const r = await (pedirPedidos.promesa || pedirPedidos());
+      pedirPedidos.promesa = null;
       if (r.error) throw new Error(r.error);
+      guardar('coquet_mis_pedidos', { email: st.sesion.email, pedidos: r.pedidos });
       st.misPedidos = r.pedidos;
       cont.innerHTML = r.pedidos.length ? r.pedidos.map(pedidoHtml).join('') : '<p>Todavía no hiciste pedidos.</p>';
-    } catch (err) { cont.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
+    } catch (err) { if (!st.misPedidos) cont.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
   }
 
   /* ---------- Diálogos y avisos ---------- */
@@ -1075,7 +1107,7 @@
   // Recordatorio suave si dejó prendas en el carrito
   setTimeout(() => {
     const n = st.carrito.reduce((a, l) => a + l.cantidad, 0);
-    if (n && !$$('dialog').some(d => d.open) && !new URL(location.href).searchParams.get('pedido'))
+    if (n && !st.duena && !$$('dialog').some(d => d.open) && !new URL(location.href).searchParams.get('pedido'))
       tostada(n === 1 ? 'Tenés 1 prenda esperándote en el carrito' : `Tenés ${n} prendas esperándote en el carrito`, 'Ver', abrirCarrito);
   }, 2500);
 
