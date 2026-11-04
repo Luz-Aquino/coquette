@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611041730">
+  <link rel="stylesheet" href="styles.css?v=202611041748">
   <style>
     .ingreso { min-height: 100dvh; display: grid; grid-template-columns: 1fr; }
     .ingreso-foto { display: none; background: var(--rosa) center/cover no-repeat; }
@@ -48,7 +48,7 @@
     </section>
   </main>
 
-  <script src="config.js?v=202611041730"></script>
+  <script src="config.js?v=202611041748"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script>
     (function () {
@@ -56,10 +56,13 @@
       const destino = { compra: './#compra', cuenta: './#cuenta' }[new URLSearchParams(location.search).get('volver')] || './';
       document.getElementById('volver').href = destino.replace(/#.*/, '');
 
-      // Foto de fondo: el primer producto del catálogo guardado en el navegador
+      // Foto de fondo: una prenda al azar entre las 30 más nuevas (cambia en cada visita)
       try {
         const cat = JSON.parse(localStorage.getItem('coquet_cat'));
-        const p = cat && cat.productos && cat.productos.find(x => x.imagenes && x.imagenes[0]);
+        const conFoto = ((cat && cat.productos) || []).filter(x => x.imagenes && x.imagenes[0]).slice(0, 30);
+        let i = Math.floor(Math.random() * conFoto.length);
+        try { const ant = Number(sessionStorage.getItem('coquet_foto_login')); if (conFoto.length > 1 && i === ant) i = (i + 1) % conFoto.length; sessionStorage.setItem('coquet_foto_login', i); } catch (_) {}
+        const p = conFoto[i];
         if (p) {
           const img = new Image(); img.referrerPolicy = 'no-referrer'; img.src = p.imagenes[0];
           img.onload = () => { document.getElementById('foto').style.backgroundImage = `url("${img.src}")`; };
