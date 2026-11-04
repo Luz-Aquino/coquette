@@ -613,7 +613,7 @@
     if (st.enviando) return;
     const envio = validarCompra();
     if (!envio) return;
-    if (sesionVencida()) { cerrarSesion(true); prepararCompra(); pintarCarrito(); mostrarError(''); tostada('Tu sesión venció. Volvé a ingresar.'); return; }
+    if (sesionVencida()) { renovarSesion(); tostada('Reconectando tu cuenta… tocá Pagar de nuevo en unos segundos.'); return; }
     mostrarError('');
     st.enviando = true;
     const btn = $('#btnSeguir');
@@ -687,13 +687,43 @@
       return JSON.parse(decodeURIComponent(atob(b).split('').map(c => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join('')));
     } catch (_) { return null; }
   }
-  function alIngresar(credencial) {
+  function alIngresar(credencial, silencioso) {
     const d = decodificarJwt(credencial);
     if (!d || !d.email) return;
     st.sesion = { token: credencial, exp: d.exp, email: d.email, nombre: d.name || '', foto: d.picture || '' };
     guardar('coquet_sesion', st.sesion);
     tras_sesion();
-    tostada(`Hola, ${(st.sesion.nombre || st.sesion.email).split(' ')[0]}`);
+    programarRenovacion();
+    if (!silencioso) tostada(`Hola, ${(st.sesion.nombre || st.sesion.email).split(' ')[0]}`);
+  }
+
+  // La sesión de Google dura 1 hora: la renovamos sola (sin clics) para que no tengas que volver a ingresar
+  let gsiCargado = null;
+  function cargarGsi() {
+    if (window.google && google.accounts && google.accounts.id) return Promise.resolve();
+    if (gsiCargado) return gsiCargado;
+    gsiCargado = new Promise((ok, mal) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://accounts.google.com/gsi/client'; sc.async = true;
+      sc.onload = ok; sc.onerror = mal; document.head.appendChild(sc);
+    });
+    return gsiCargado;
+  }
+  async function renovarSesion() {
+    if (DEMO || !CFG.GOOGLE_CLIENT_ID) return;
+    try {
+      await cargarGsi();
+      google.accounts.id.initialize({ client_id: CFG.GOOGLE_CLIENT_ID, auto_select: true, use_fedcm_for_prompt: true, cancel_on_tap_outside: true,
+        callback: r => alIngresar(r.credential, true) });
+      google.accounts.id.prompt();
+    } catch (_) {}
+  }
+  let tRenov;
+  function programarRenovacion() {
+    clearTimeout(tRenov);
+    if (!st.sesion || !st.sesion.exp) return;
+    const ms = st.sesion.exp * 1000 - Date.now() - 5 * 60000;
+    tRenov = setTimeout(renovarSesion, Math.max(ms, 1000));
   }
   function sesionVencida() { return !st.sesion || (st.sesion.exp && st.sesion.exp * 1000 < Date.now() + 60000); }
   function cerrarSesion(silencioso) {
@@ -734,7 +764,8 @@
   let googleListo = false;
   function iniciarGoogle() {
     const s = leer('coquet_sesion', null);
-    if (s && s.exp * 1000 > Date.now() + 60000) st.sesion = s;
+    if (s && s.exp * 1000 > Date.now() + 60000) { st.sesion = s; programarRenovacion(); }
+    else if (s && s.email) renovarSesion(); // ya había entrado antes: la reconectamos sola
     tras_sesion();
     pintarBotonesGoogle();
     return;
@@ -842,7 +873,7 @@
     $('#cuentaEmail').textContent = st.sesion.email;
     const cont = $('#misPedidos');
     if (DEMO) { cont.innerHTML = '<p>Todavía no hiciste pedidos.</p>'; return; }
-    if (sesionVencida()) { cerrarSesion(true); return; }
+    if (sesionVencida()) { $('#misPedidos').innerHTML = '<p>Reconectando tu cuenta…</p>'; renovarSesion(); return; }
     const enCache = leer('coquet_mis_pedidos', null);
     const pintarLista = ps => { st.misPedidos = ps; cont.innerHTML = ps.length ? ps.map(pedidoHtml).join('') : '<p>Todavía no hiciste pedidos.</p>'; };
     if (enCache && enCache.email === st.sesion.email) pintarLista(enCache.pedidos);
