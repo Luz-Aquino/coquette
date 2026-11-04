@@ -18,7 +18,7 @@ const ARMONY = {
   MARGEN_PROMO3: 2.5, // promo de 3 prendas = costo × 2,5 (mismo margen que la unidad)
   REDONDEO: 0,      // 0 = sin redondeo. Ej: 100 → redondea hacia arriba a múltiplos de $100
   EMAIL: 'luzaquino84@gmail.com', // a dónde llegan los avisos. Vacío = sin mails
-  AVISAR_POR_MAIL: ['AGOTADO', 'Nuevo'], // tipos de alerta que se mandan por mail (todas quedan en la hoja)
+  AVISAR_POR_MAIL: ['REVISAR', 'AGOTADO', 'Nuevo'], // tipos de alerta que se mandan por mail (todas quedan en la hoja)
   HORAS_ENTRE_MAILS_ERROR: 6,             // si el error se repite, no manda otro mail antes de este tiempo
   POR_PAGINA: 100,  // máximo que permite WooCommerce
   LOTE: 25          // variantes que se piden en paralelo
@@ -54,7 +54,7 @@ function syncArmony() {
     if (!filas.length) throw new Error('No se obtuvo ningún producto. La hoja no se modificó.');
 
     escribirHoja_(hoja, filas);
-    const alertas = compararEstados_(anterior, filas);
+    const alertas = compararEstados_(anterior, filas).concat(alertasRevisar_(filas));
     registrarAlertas_(ss, alertas);
 
     Logger.log(`OK: ${productos.length} productos, ${filas.length} filas, ${alertas.length} alertas.`);
@@ -223,23 +223,84 @@ function precio_(prices, campo) {
 }
 
 // Decide si cada variante es "Unidad", "Promo x3" o "Pack x6" y le pone su precio de venta.
-// Promo x3 si la opción dice "x3" / "promo". Pack si dice 6 / x6 / pack / curva, o si cuesta 3 veces o más que la más barata.
+// Si algo no cierra, la marca "Revisar": queda sin precio y NO se vende en la tienda hasta que se corrija.
+//  - opción de venta desconocida (ej: "Promo x4", "Mitad de precio")
+//  - un precio muy distinto al de las otras variantes iguales del mismo producto
+//  - una promo o pack que cuesta casi lo mismo que una unidad
 function definirPrecios_(filas) {
   const c = n => COLUMNAS_ARMONY.indexOf(n);
-  const minimo = {};
+  MOTIVOS_REVISAR = {};
+  const ATTR_VENTA = /unidad|cantidad|venta|presentaci|promo|pack|modo/i;
+  const tipoDe = f => {
+    const partes = String(f[c('Otras opciones')] || '').split('|').map(x => x.trim()).filter(Boolean);
+    let tipo = 'Unidad', desconocido = '';
+    partes.forEach(pt => {
+      const i = pt.indexOf(':');
+      const nombre = i >= 0 ? pt.slice(0, i) : '', valor = (i >= 0 ? pt.slice(i + 1) : pt).trim();
+      if (!ATTR_VENTA.test(nombre) && !ATTR_VENTA.test(valor)) return; // otra opción (ej: modelo): no cambia el precio
+      if (/^(unidad|x\s*1|1|todos)$/i.test(valor)) tipo = 'Unidad';
+      else if (/^(promo\s*)?x\s*3$|promo\s*x?\s*3|^3\s*(prendas|unidades)?$/i.test(valor)) tipo = 'Promo x3';
+      else if (/x\s*6|\b6\b|pack|curva|docena|mayor/i.test(valor)) tipo = 'Pack x6';
+      else desconocido = valor;
+    });
+    return desconocido ? 'Revisar' : tipo;
+  };
+  // 1) Tipo de cada variante
+  filas.forEach(f => { f[c('Tipo venta')] = tipoDe(f); });
+  // Pack sin aclarar en la opción: cuesta 3 veces o más que la unidad más barata del producto
+  const minUnidad = {};
   filas.forEach(f => {
     const id = f[c('ID Producto')], costo = f[c('Costo')];
-    if (costo !== '' && !isNaN(costo)) minimo[id] = Math.min(minimo[id] ?? Infinity, costo);
+    if (f[c('Tipo venta')] === 'Unidad' && costo !== '' && !isNaN(costo)) minUnidad[id] = Math.min(minUnidad[id] ?? Infinity, costo);
   });
   filas.forEach(f => {
-    const costo = f[c('Costo')];
-    const opciones = String(f[c('Otras opciones')] || '');
-    const esPromo3 = /x\s*3\b|\bpromo\b|\b3\s*(prendas|unidades)/i.test(opciones);
-    const esPack = !esPromo3 && (/\b6\b|x\s*6|pack|curva|docena|mayor/i.test(opciones) ||
-      (costo !== '' && minimo[f[c('ID Producto')]] && costo >= 3 * minimo[f[c('ID Producto')]]));
-    f[c('Tipo venta')] = esPromo3 ? 'Promo x3' : esPack ? 'Pack x6' : 'Unidad';
-    f[c('Precio venta')] = precioVenta_(costo, esPack, esPromo3);
+    const costo = f[c('Costo')], min = minUnidad[f[c('ID Producto')]];
+    if (f[c('Tipo venta')] === 'Unidad' && min && costo >= 3 * min) f[c('Tipo venta')] = 'Pack x6';
   });
+  // 2) Controles de precio por producto y tipo
+  const grupos = {};
+  filas.forEach(f => {
+    const costo = f[c('Costo')];
+    if (costo === '' || isNaN(costo) || f[c('Tipo venta')] === 'Revisar') return;
+    const k = f[c('ID Producto')] + '|' + f[c('Tipo venta')];
+    (grupos[k] = grupos[k] || []).push(Number(costo));
+  });
+  const mediana = a => { const o = a.slice().sort((x, y) => x - y); return o[Math.floor(o.length / 2)]; };
+  const minU = {};
+  Object.keys(grupos).forEach(k => { const [id, t] = k.split('|'); if (t === 'Unidad') minU[id] = Math.min(...grupos[k]); });
+  filas.forEach(f => {
+    const tipo = f[c('Tipo venta')], costo = Number(f[c('Costo')]), id = f[c('ID Producto')];
+    let motivo = '';
+    if (tipo === 'Revisar') motivo = 'Opción de venta desconocida';
+    else if (f[c('Costo')] !== '' && !isNaN(costo)) {
+      const g = grupos[id + '|' + tipo] || [];
+      const med = g.length >= 3 ? mediana(g) : null;
+      if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio muy distinto al resto (${tipo}: $${costo} y lo normal es $${med})`;
+      else if (tipo === 'Promo x3' && minU[id] && costo < minU[id] * 1.5) motivo = `La promo x3 cuesta casi lo mismo que una unidad ($${costo} vs $${minU[id]})`;
+      else if (tipo === 'Pack x6' && minU[id] && costo < minU[id] * 2.5) motivo = `El pack x6 cuesta casi lo mismo que pocas unidades ($${costo} vs $${minU[id]})`;
+    }
+    if (motivo) { f[c('Tipo venta')] = 'Revisar'; f[c('Precio venta')] = ''; MOTIVOS_REVISAR[String(f[c('Clave')])] = motivo; }
+    else f[c('Precio venta')] = precioVenta_(f[c('Costo')], tipo === 'Pack x6', tipo === 'Promo x3');
+  });
+}
+let MOTIVOS_REVISAR = {}; // por qué se marcó cada variante (no se escribe en la hoja)
+
+// Avisa UNA vez por variante marcada para revisar (y vuelve a avisar si se corrige y reaparece)
+function alertasRevisar_(filas) {
+  const c = n => COLUMNAS_ARMONY.indexOf(n);
+  const props = PropertiesService.getScriptProperties();
+  let avisadas = {};
+  try { avisadas = JSON.parse(props.getProperty('REVISAR_AVISADAS') || '{}'); } catch (_) {}
+  const ahora = {}, alertas = [];
+  filas.filter(f => f[c('Tipo venta')] === 'Revisar').forEach(f => {
+    const clave = String(f[c('Clave')]);
+    ahora[clave] = 1;
+    if (avisadas[clave]) return;
+    alertas.push(['REVISAR', f[c('Producto')], [f[c('Color')], f[c('Talle')], f[c('Otras opciones')]].filter(Boolean).join(' / '),
+      MOTIVOS_REVISAR[clave] || 'Revisar precio', f[c('Link')]]);
+  });
+  props.setProperty('REVISAR_AVISADAS', JSON.stringify(ahora));
+  return alertas;
 }
 
 function precioVenta_(costo, esPack, esPromo3) {
@@ -365,7 +426,7 @@ function registrarAlertas_(ss, alertas) {
 // Mail agrupado por producto: "VESTIDO LISBOA — Agotado: Negro / M, Blanco / L"
 function enviarMailAlertas_(ss, alertas) {
   if (!ARMONY.EMAIL) return;
-  const titulos = { AGOTADO: '🔴 SIN STOCK', Nuevo: '🆕 PRODUCTOS NUEVOS' };
+  const titulos = { REVISAR: '⚠️ PRECIOS PARA REVISAR (ocultos en la tienda hasta que se corrijan)', AGOTADO: '🔴 SIN STOCK', Nuevo: '🆕 PRODUCTOS NUEVOS' };
   const secciones = [];
   let total = 0;
 
@@ -383,7 +444,7 @@ function enviarMailAlertas_(ss, alertas) {
     const lineas = productos.slice(0, 60).map(p => {
       const g = grupo[p];
       const vars = g.variantes.length ? `\n   ${g.variantes.slice(0, 15).join(', ')}${g.variantes.length > 15 ? ` y ${g.variantes.length - 15} más` : ''}` : '';
-      const precio = tipo === 'Nuevo' && g.detalle ? `  (${g.detalle})` : '';
+      const precio = (tipo === 'Nuevo' || tipo === 'REVISAR') && g.detalle ? `  (${g.detalle})` : '';
       return `• ${p}${precio}${vars}\n   ${g.link}`;
     });
     if (productos.length > 60) lineas.push(`…y ${productos.length - 60} productos más.`);
@@ -421,4 +482,17 @@ function probarMails() {
   ]);
   PropertiesService.getScriptProperties().deleteProperty('ULTIMO_ERROR');
   avisarError_(new Error('Esto es solo una prueba, no pasó nada.'));
+}
+
+// Prueba sin tocar nada: muestra en el registro qué variantes quedarían "para revisar" con los datos actuales
+function probarControlesPrecio() {
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ARMONY.HOJA);
+  const datos = hoja.getDataRange().getValues(); datos.shift();
+  const filas = datos.map(f => f.slice(0, COLUMNAS_ARMONY.length));
+  definirPrecios_(filas);
+  const c = n => COLUMNAS_ARMONY.indexOf(n);
+  const rev = filas.filter(f => f[c('Tipo venta')] === 'Revisar');
+  const tipos = {}; filas.forEach(f => { tipos[f[c('Tipo venta')]] = (tipos[f[c('Tipo venta')]] || 0) + 1; });
+  Logger.log('Tipos: ' + JSON.stringify(tipos));
+  rev.forEach(f => Logger.log(`REVISAR · ${f[c('Producto')]} · ${[f[c('Color')], f[c('Talle')], f[c('Otras opciones')]].join(' / ')} · ${MOTIVOS_REVISAR[String(f[c('Clave')])]}`));
 }
