@@ -85,3 +85,4 @@
   .pub-botones .boton { flex: 1 1 100%; }
 }
 #buscarPub { height: 44px; padding: 0 16px; border-radius: 22px; border: var(--borde); background: #fff; font-size: 16px; }
+.entrando { margin: 12vh 0; text-align: center; font: italic 400 22px var(--serif); color: var(--bordo); }

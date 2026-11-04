@@ -745,6 +745,7 @@
     st.duena = si;
     document.body.classList.toggle('duena', si);
     $('#btnPanel').hidden = !si;
+    $('#btnCuenta').hidden = si; // la dueña ve solo "Mi panel"; las clientas ven "Ingresar" / su nombre
     if (si) {
       try { localStorage.setItem('coquet_admin_desde_tienda', JSON.stringify({ token: st.sesion.token, email: st.sesion.email, exp: st.sesion.exp })); } catch (_) {}
     }
@@ -1053,7 +1054,11 @@
   const pesoTalle = t => { const u = String(t).toUpperCase().trim(); const i = ORDEN_TALLES.indexOf(u);
     if (i >= 0) return i; const n = parseFloat(u); if (!isNaN(n)) return 100 + n; return /UNIC|ÚNIC/.test(u) ? 1000 : 500; };
   function pintarFiltros() {
-    $('#filtroCats').innerHTML = $('#categorias').innerHTML;
+    const nF = st.productos.filter(p => st.favs.has(p.id)).length;
+    $('#filtroFavs').innerHTML = nF
+      ? `<button class="chip chip-fav" data-cat="favs" aria-pressed="${st.filtro === 'favs'}">♡ Solo mis favoritos (${nF})</button>`
+      : '<p class="filtro-vacio">Tocá el ♡ de las prendas que te gusten y vas a poder verlas todas juntas acá.</p>';
+    $('#filtroCats').innerHTML = $('#categorias').innerHTML.replace(/<button[^>]*data-cat="favs"[\s\S]*?<\/button>/, '');
     const colores = {}, talles = {};
     st.productos.forEach(p => p.variantes.forEach(v => {
       if (!v.stock) return;
@@ -1077,6 +1082,10 @@
     $('#catalogo').scrollIntoView({ behavior: suave() });
   });
   $('#navFiltros').addEventListener('click', () => { pintarFiltros(); abrir($('#dlgFiltros')); });
+  $('#filtroFavs').addEventListener('click', e => {
+    const b = e.target.closest('[data-cat]'); if (!b) return;
+    st.filtro = st.filtro === 'favs' ? 'todo' : 'favs'; pintarCategorias(); pintarFiltros(); pintarGrilla();
+  });
   $('#filtroCats').addEventListener('click', e => {
     const b = e.target.closest('[data-cat]'); if (!b) return;
     st.filtro = b.dataset.cat; pintarCategorias(); pintarFiltros(); pintarGrilla();

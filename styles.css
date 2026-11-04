@@ -955,3 +955,4 @@ a.social[href]:hover { background: var(--bordo); color: #fff; transform: transla
 .confianza li { text-align: center; }
 body.duena #btnCuenta { max-width: 90px; }
 @media (max-width: 400px) { body.duena #btnBuscar { display: none; } }
+.filtro-vacio { margin: 0; font-size: 13px; color: var(--gris); }

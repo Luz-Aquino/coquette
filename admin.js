@@ -44,13 +44,18 @@
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
     location.reload();
   }
-  function error(msg) { const e = $('#errorIngreso'); e.textContent = msg; e.hidden = !msg; }
+  function error(msg) { const e = $('#errorIngreso'); if (!e) return; e.textContent = msg; e.hidden = !msg; }
 
   function iniciar() {
     let ses = null;
     try { ses = JSON.parse(sessionStorage.getItem('coquet_admin')); } catch (_) {}
     if (!ses || ses.exp * 1000 < Date.now() + 60000) { try { ses = JSON.parse(localStorage.getItem('coquet_admin_desde_tienda')); } catch (_) {} }
-    if (ses && ses.exp * 1000 > Date.now() + 60000) { ingresar(ses.token); }
+    if (ses && ses.exp * 1000 > Date.now() + 60000) {
+      // Ya venía con sesión: mostramos "Entrando…" en vez del botón de Google
+      $('#ingreso').innerHTML = '<p class="entrando">Entrando a tu panel…</p>';
+      ingresar(ses.token).then(() => { if ($('#panel').hidden) location.reload(); }, () => location.reload());
+      return;
+    }
     if (DEMO || !CFG.GOOGLE_CLIENT_ID) {
       $('#googleAdmin').innerHTML = '<button class="boton principal">Entrar al panel de demostración</button>';
       $('#googleAdmin button').onclick = () => ingresar('demo');
