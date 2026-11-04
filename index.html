@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611041237">
+  <link rel="stylesheet" href="styles.css?v=202611041255">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237A1F3D'/%3E%3Ctext x='32' y='46' font-family='Georgia' font-style='italic' font-size='42' text-anchor='middle' fill='%23FFF7F6'%3EC%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -65,6 +65,8 @@
     <p class="pie-marca">Coquette<small>NFM</small></p>
     <ul>
       <li>Envíos por Correo Argentino a todo el país</li>
+      <li>Despachamos dentro de los 7 días hábiles de acreditado el pago</li>
+      <li>Cambios dentro de los 5 días de recibido el pedido</li>
       <li>Pagá con Mercado Pago, en un pago o en cuotas</li>
       <li><a href="#" id="linkMisPedidos">Mis pedidos</a> · <a href="privacidad.html">Privacidad</a></li>
     </ul>
@@ -84,6 +86,10 @@
         <div class="ficha-titulo"><h2 class="ficha-nombre" id="pNombre"></h2><span id="pFav"></span></div>
         <p class="ficha-precio"><span id="pPrecio"></span> <small id="pPorPrenda"></small></p>
         <p class="ficha-cuotas">Pagalo en cuotas con Mercado Pago</p>
+        <ul class="ficha-plazos">
+          <li>Despachamos dentro de los 7 días hábiles de acreditado el pago</li>
+          <li>Cambios dentro de los 5 días de recibido el pedido</li>
+        </ul>
         <div class="opcion" id="grpTipo">
           <p class="opcion-titulo">Comprar</p>
           <div class="segmentado" id="pTipos"></div>
@@ -190,7 +196,7 @@
         <button class="boton principal ancho" id="btnSeguir">Finalizar compra</button>
         <ul class="confianza">
           <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>Compra protegida por Mercado Pago</li>
-          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg>Te enviamos el número de seguimiento</li>
+          <li><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.6"/><circle cx="17" cy="17.5" r="1.6"/></svg>Despacho en 7 días hábiles de acreditado el pago, con seguimiento</li>
           <li id="confCambios" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/></svg><span></span></li>
         </ul>
         <p class="aviso-chico centro" id="notaPago" hidden>Te llevamos a Mercado Pago para pagar en un pago o en cuotas.</p>
@@ -279,8 +285,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611041237"></script>
-  <script src="demo.js?v=202611041237"></script>
-  <script src="app.js?v=202611041237"></script>
+  <script src="config.js?v=202611041255"></script>
+  <script src="demo.js?v=202611041255"></script>
+  <script src="app.js?v=202611041255"></script>
 </body>
 </html>

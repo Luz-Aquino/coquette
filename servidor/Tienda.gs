@@ -480,7 +480,8 @@ function mailPagoCliente_(d) {
       `<p>Tu pago fue aprobado. Ya estamos preparando tu pedido <b>${esc_(d['Pedido'])}</b>.</p>` +
       tablaItems_(items, d) +
       `<p><b>Envío:</b> ${esc_(d['Envío'])}<br>${esc_([d['Dirección'], d['Ciudad'], d['Provincia'], d['CP']].filter(Boolean).join(', '))}</p>` +
-      `<p>Cuando lo despachemos te mandamos el número de seguimiento de Correo Argentino.</p>`)
+      `<p>Despachamos tus prendas dentro de los <b>7 días hábiles</b> de acreditado el pago. Cuando salga te mandamos el número de seguimiento de Correo Argentino.</p>` +
+      `<p>Si necesitás un cambio, tenés <b>5 días</b> desde que recibís el pedido.</p>`)
   });
 }
 

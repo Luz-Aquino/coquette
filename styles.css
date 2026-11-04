@@ -883,3 +883,5 @@ body.bloqueado .whatsapp { z-index: 0; }
 .codigo-fila input { height: 48px; padding: 0 14px; border-radius: 10px; border: var(--borde); background: #fff; font-size: 16px; }
 .codigo-fila input:focus { border-color: var(--bordo); outline: none; box-shadow: 0 0 0 3px rgba(122,31,61,.14); }
 .codigo-fila .boton { height: 48px; }
+.ficha-plazos { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--gris); }
+.ficha-plazos li::before { content: "✦"; color: #C9A36A; margin-right: 7px; font-size: 10px; }

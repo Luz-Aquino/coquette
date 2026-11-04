@@ -1018,7 +1018,7 @@
   }, 2500);
 
   const dias = Number(CFG.CAMBIOS_DIAS) || 0;
-  if (dias) { $('#confCambios').hidden = false; $('#confCambios span').textContent = `Cambios dentro de los ${dias} días`; }
+  if (dias) { $('#confCambios').hidden = false; $('#confCambios span').textContent = `Cambios dentro de los ${dias} días de recibido el pedido`; }
 
   /* ---------- Inicio ---------- */
   escribirFirma();
