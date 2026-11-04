@@ -149,11 +149,15 @@ function leerVariantes_() {
     imagenes: String(f[i('Todas las imágenes')] || ''),
     descripcion: String(f[i('Descripción')] || ''),
     link: String(f[i('Link')] || ''),
-    costo: Number(f[i('Costo')]) || 0,
+    costo: (Number(f[i('Costo')]) || 0) * (esPromo3_(f[i('Otras opciones')]) && String(f[i('Tipo venta')]) === 'Pack x6' ? 2 : 1),
     otras: String(f[i('Otras opciones')] || ''),
+    dosPromos: esPromo3_(f[i('Otras opciones')]) && String(f[i('Tipo venta')]) === 'Pack x6',
     aviso: i('Aviso') >= 0 ? String(f[i('Aviso')] || '') : ''
   })).filter(v => v.clave && v.pid);
 }
+
+// "Promo x3" de Armony que la tienda vende como Pack x6 (hay que comprar 2 promos)
+function esPromo3_(otras) { return /promo\s*x?\s*3|x\s*3\b/i.test(String(otras || '')); }
 
 function armarCatalogo_(vars) {
   const prods = {}, orden = [];
@@ -316,7 +320,7 @@ function crearPedido_(b) {
   leerVariantes_().forEach(v => { vars[v.clave] = v; });
   const lineas = pedidos.map(x => {
     const v = vars[String(x.id)];
-    const det = v ? [v.tipo, v.color, v.talle].filter(Boolean).join(' · ') : '';
+    const det = v ? [v.tipo + (v.dosPromos ? ' (comprar 2× Promo x3 a Armony)' : ''), v.color, v.talle].filter(Boolean).join(' · ') : '';
     if (!v || !v.precio) throw new Error('Un producto del carrito ya no está disponible. Quitalo y probá de nuevo.');
     if (v.stock === 'Agotado') throw new Error(`Se agotó: ${v.producto} (${det}). Quitalo del carrito.`);
     return {

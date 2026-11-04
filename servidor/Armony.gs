@@ -15,7 +15,8 @@ const ARMONY = {
   HOJA_ALERTAS: 'Alertas Armony',
   MARGEN_UNIDAD: 2.5, // venta por unidad = costo + 150% (× 2,5)
   MARGEN_PACK: 2,     // venta por pack de 6 = costo × 2
-  MARGEN_PROMO3: 2.5, // promo de 3 prendas = costo × 2,5 (mismo margen que la unidad)
+  MARGEN_PROMO3: 2.5, // (solo si PROMO3_COMO_PACK6 = false) promo de 3 prendas = costo × 2,5
+  PROMO3_COMO_PACK6: true, // las "Promo x3" de Armony se venden como Pack x6 (= 2 promos): costo × 2 × MARGEN_PACK
   REDONDEO: 0,      // 0 = sin redondeo. Ej: 100 → redondea hacia arriba a múltiplos de $100
   EMAIL: 'luzaquino84@gmail.com', // a dónde llegan los avisos. Vacío = sin mails
   AVISAR_POR_MAIL: ['REVISAR', 'AGOTADO', 'Nuevo'], // tipos de alerta que se mandan por mail (todas quedan en la hoja)
@@ -248,7 +249,13 @@ function definirPrecios_(filas) {
     return desconocido ? 'Revisar' : tipo;
   };
   // 1) Tipo de cada variante
-  filas.forEach(f => { f[c('Tipo venta')] = tipoDe(f); });
+  const doble = {}; // claves de "Promo x3" que se venden como Pack x6 (se compran 2 promos a Armony)
+  filas.forEach(f => {
+    let t = tipoDe(f);
+    if (t === 'Promo x3' && ARMONY.PROMO3_COMO_PACK6) { t = 'Pack x6'; doble[String(f[c('Clave')])] = true; }
+    f[c('Tipo venta')] = t;
+  });
+  const ce = f => { const k = f[c('Costo')]; return k === '' || isNaN(k) ? k : Number(k) * (doble[String(f[c('Clave')])] ? 2 : 1); };
   // Pack sin aclarar en la opción: cuesta 3 veces o más que la unidad más barata del producto
   const minUnidad = {};
   filas.forEach(f => {
@@ -262,7 +269,7 @@ function definirPrecios_(filas) {
   // 2) Controles de precio por producto y tipo
   const grupos = {};
   filas.forEach(f => {
-    const costo = f[c('Costo')];
+    const costo = ce(f);
     if (costo === '' || isNaN(costo) || Number(costo) <= 0 || f[c('Tipo venta')] === 'Revisar') return;
     const k = f[c('ID Producto')] + '|' + f[c('Tipo venta')];
     (grupos[k] = grupos[k] || []).push(Number(costo));
@@ -271,20 +278,20 @@ function definirPrecios_(filas) {
   const minU = {};
   Object.keys(grupos).forEach(k => { const [id, t] = k.split('|'); if (t === 'Unidad') minU[id] = Math.min(...grupos[k]); });
   filas.forEach(f => {
-    const tipo = f[c('Tipo venta')], costo = Number(f[c('Costo')]), id = f[c('ID Producto')];
+    const tipo = f[c('Tipo venta')], costo = Number(ce(f)), id = f[c('ID Producto')];
     let motivo = '';
     if (tipo === 'Revisar') motivo = 'Opción de venta desconocida';
     else if (f[c('Costo')] === '' || isNaN(costo) || costo <= 0) { f[c('Precio venta')] = ''; return; } // sin precio: no se vende
     else {
       const g = grupos[id + '|' + tipo] || [];
       const med = g.length >= 3 ? mediana(g) : null;
-      if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio muy distinto al resto (${tipo}: $${costo} y lo normal es $${med})`;
+      if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio muy distinto al resto (${tipo}${doble[String(f[c('Clave')])] ? ' = 2 promos x3' : ''}: $${costo} y lo normal es $${med})`;
       else if (tipo === 'Promo x3' && minU[id] && costo < minU[id] * 1.5) motivo = `La promo x3 cuesta casi lo mismo que una unidad ($${costo} vs $${minU[id]})`;
       else if (tipo === 'Pack x6' && minU[id] && costo < minU[id] * 2.5) motivo = `El pack x6 cuesta casi lo mismo que pocas unidades ($${costo} vs $${minU[id]})`;
     }
     f[c('Aviso')] = motivo;
     if (motivo) { f[c('Tipo venta')] = 'Revisar'; f[c('Precio venta')] = ''; MOTIVOS_REVISAR[String(f[c('Clave')])] = motivo; }
-    else f[c('Precio venta')] = precioVenta_(f[c('Costo')], tipo === 'Pack x6', tipo === 'Promo x3');
+    else f[c('Precio venta')] = precioVenta_(ce(f), tipo === 'Pack x6', tipo === 'Promo x3');
   });
 }
 let MOTIVOS_REVISAR = {}; // por qué se marcó cada variante (no se escribe en la hoja)
