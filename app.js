@@ -1019,9 +1019,12 @@
 
   // Redes: aparecen solas cuando se cargan en config.js
   const usuario = u => String(u || '').trim().replace(/^@/, '');
-  [['#redInstagram', usuario(CFG.INSTAGRAM), u => `https://instagram.com/${encodeURIComponent(u)}`],
+  [['#redFacebook', usuario(CFG.FACEBOOK), u => `https://www.facebook.com/${encodeURIComponent(u)}`],
+   ['#redInstagram', usuario(CFG.INSTAGRAM), u => `https://instagram.com/${encodeURIComponent(u)}`],
    ['#redTiktok', usuario(CFG.TIKTOK), u => `https://www.tiktok.com/@${encodeURIComponent(u)}`]].forEach(([sel, u, url]) => {
-    if (!u) return; const a = $(sel); a.hidden = false; a.href = url(u); a.querySelector('span').textContent = '@' + u;
+    const a = $(sel);
+    if (u) { a.href = url(u); a.title = '@' + u; }
+    else { a.removeAttribute('href'); a.classList.add('pronto'); a.title = 'Muy pronto'; a.setAttribute('aria-disabled', 'true'); }
   });
   if (numWa) { const a = $('#redWhatsapp'); a.hidden = false; a.href = wa.href; }
   const dias = Number(CFG.CAMBIOS_DIAS) || 0;

@@ -927,3 +927,10 @@ body.bloqueado .whatsapp { z-index: 0; }
 /* Nunca scroll lateral en ningún dispositivo */
 html { overflow-x: hidden; overflow-x: clip; }
 .portada::before { inset: -40px 0 auto; }
+
+/* ---------- Logos de redes ---------- */
+.sociales { display: flex; gap: 10px; margin-top: 12px; }
+.social { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: #fff; border: 1px solid #F1D3DA; color: var(--bordo); transition: transform .2s, background .2s, color .2s; }
+.social svg { width: 20px; height: 20px; fill: currentColor; }
+a.social[href]:hover { background: var(--bordo); color: #fff; transform: translateY(-2px); }
+.social.pronto { cursor: default; }
