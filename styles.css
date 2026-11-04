@@ -944,8 +944,6 @@ a.social[href]:hover { background: var(--bordo); color: #fff; transform: transla
 .segmentado { flex-wrap: wrap; max-width: 100%; }
 
 /* ---------- Modo dueña ---------- */
-body.duena #btnCarrito, body.duena #navCarrito, body.duena .ficha-compra, body.duena .fav { display: none !important; }
-body.duena .nav-abajo { grid-template-columns: repeat(3, 1fr); }
 .panel-duena { text-decoration: none; display: inline-flex; align-items: center; background: var(--bordo) !important; color: #fff !important; border-color: var(--bordo) !important; }
 .panel-duena[hidden] { display: none !important; }
 /* Cargando pedidos */
@@ -955,3 +953,5 @@ body.duena .nav-abajo { grid-template-columns: repeat(3, 1fr); }
 @keyframes puntito { 50% { transform: translateY(-6px); opacity: .5; } }
 /* Confianza: siempre centrado y prolijo */
 .confianza li { text-align: center; }
+body.duena #btnCuenta { max-width: 90px; }
+@media (max-width: 400px) { body.duena #btnBuscar { display: none; } }

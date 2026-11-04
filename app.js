@@ -427,7 +427,6 @@
   }
 
   function agregarAlCarrito() {
-    if (st.duena) { tostada('Estás como dueña: para comprar, entrá con otra cuenta.'); return; }
     const s = st.sel, v = varianteSel();
     if (!v || !v.stock) return;
     const linea = st.carrito.find(l => l.id === v.id);
@@ -475,7 +474,6 @@
   const subtotal = () => lineasCarrito().reduce((s, l) => s + l.v.precio * l.cantidad, 0);
 
   function abrirCarrito() {
-    if (st.duena) { location.href = 'admin.html'; return; }
     irPaso('carrito');
     abrir($('#dlgCarrito'));
   }
@@ -705,7 +703,7 @@
     tras_sesion();
     if (!silencioso) tostada('Cerraste sesión.');
   }
-  // Modo dueña: si entra Luz, ve "Mi panel" y no tiene carrito
+  // Modo dueña: si entra Luz, ve además el botón "Mi panel" (la tienda completa, con carrito, sigue igual)
   async function esDuena(email) {
     try {
       const h = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(String(email).trim().toLowerCase())))).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -717,10 +715,7 @@
     st.duena = si;
     document.body.classList.toggle('duena', si);
     $('#btnPanel').hidden = !si;
-    $('#btnCuenta').hidden = si;
     if (si) {
-      st.carrito = []; guardar('coquet_carrito', []);
-      const c = $('#contador'); c.hidden = true;
       try { localStorage.setItem('coquet_admin_desde_tienda', JSON.stringify({ token: st.sesion.token, email: st.sesion.email, exp: st.sesion.exp })); } catch (_) {}
     }
   }
@@ -731,7 +726,6 @@
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
     aplicarModoDuena().then(() => {
-      if (st.duena) return;
       if (st.carrito.length) sincronizarCarrito(); else recuperarCarrito();
       if (st.sesion && !DEMO && CFG.API_URL && !sesionVencida() && !pedirPedidos.promesa) pedirPedidos().catch(() => {});
     });
@@ -1107,7 +1101,7 @@
   // Recordatorio suave si dejó prendas en el carrito
   setTimeout(() => {
     const n = st.carrito.reduce((a, l) => a + l.cantidad, 0);
-    if (n && !st.duena && !$$('dialog').some(d => d.open) && !new URL(location.href).searchParams.get('pedido'))
+    if (n && !$$('dialog').some(d => d.open) && !new URL(location.href).searchParams.get('pedido'))
       tostada(n === 1 ? 'Tenés 1 prenda esperándote en el carrito' : `Tenés ${n} prendas esperándote en el carrito`, 'Ver', abrirCarrito);
   }, 2500);
 
