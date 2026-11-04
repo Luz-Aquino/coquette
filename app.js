@@ -444,6 +444,11 @@
       return x ? { ...l, v: x.v, p: x.p } : null;
     }).filter(Boolean);
   }
+  function actualizarContador() {
+    const n = st.carrito.reduce((s, l) => s + l.cantidad, 0);
+    const c = $('#contador'); c.hidden = n === 0; c.textContent = n;
+    const cn = $('#navCarritoN'); if (cn) { cn.hidden = n === 0; cn.textContent = n; }
+  }
   function guardarCarrito() {
     guardar('coquet_carrito', st.carrito);
     const n = st.carrito.reduce((s, l) => s + l.cantidad, 0);
@@ -731,6 +736,7 @@
   function cerrarSesion(silencioso) {
     st.sesion = null;
     borrar('coquet_sesion'); borrar('coquet_admin_desde_tienda'); borrar('coquet_mis_pedidos');
+    st.carrito = []; guardar('coquet_carrito', []); borrar('coquet_carrito_de'); actualizarContador();
     guardar('coquet_sin_auto', 1);
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
     tras_sesion();
@@ -759,6 +765,12 @@
     b.setAttribute('aria-label', st.sesion ? 'Tu cuenta' : 'Ingresar con Google');
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
+    // El carrito es de cada cuenta: si entra otra cuenta en este navegador, no ve el carrito de la anterior
+    if (st.sesion) {
+      const de = leer('coquet_carrito_de', '');
+      if (de && de !== st.sesion.email) { st.carrito = []; guardar('coquet_carrito', []); recuperarCarrito.hecho = false; actualizarContador(); }
+      guardar('coquet_carrito_de', st.sesion.email);
+    }
     aplicarModoDuena().then(() => {
       if (st.carrito.length) sincronizarCarrito(); else recuperarCarrito();
       if (st.sesion && !DEMO && CFG.API_URL && !sesionVencida() && !pedirPedidos.promesa) pedirPedidos().catch(() => {});
