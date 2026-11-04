@@ -885,3 +885,12 @@ body.bloqueado .whatsapp { z-index: 0; }
 .codigo-fila .boton { height: 48px; }
 .ficha-plazos { list-style: none; margin: 8px 0 4px; padding: 0; display: grid; gap: 4px; font-size: 13px; color: var(--gris); }
 .ficha-plazos li::before { content: "✦"; color: #C9A36A; margin-right: 7px; font-size: 10px; }
+
+/* ---------- Contacto en el pie ---------- */
+.contacto { margin-top: 22px; }
+.contacto-tit { margin: 0 0 8px; font: 600 12px/1 var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--gris); }
+.redes { display: flex; flex-wrap: wrap; gap: 8px; }
+.red { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 20px; background: #fff; border: 1px solid var(--linea); color: var(--bordo); text-decoration: none; font-size: 14px; }
+.red[hidden] { display: none; }
+.red:hover { background: #FBEBED; }
+.red svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }

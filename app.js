@@ -1017,6 +1017,13 @@
       tostada(n === 1 ? 'Tenés 1 prenda esperándote en el carrito' : `Tenés ${n} prendas esperándote en el carrito`, 'Ver', abrirCarrito);
   }, 2500);
 
+  // Redes: aparecen solas cuando se cargan en config.js
+  const usuario = u => String(u || '').trim().replace(/^@/, '');
+  [['#redInstagram', usuario(CFG.INSTAGRAM), u => `https://instagram.com/${encodeURIComponent(u)}`],
+   ['#redTiktok', usuario(CFG.TIKTOK), u => `https://www.tiktok.com/@${encodeURIComponent(u)}`]].forEach(([sel, u, url]) => {
+    if (!u) return; const a = $(sel); a.hidden = false; a.href = url(u); a.querySelector('span').textContent = '@' + u;
+  });
+  if (numWa) { const a = $('#redWhatsapp'); a.hidden = false; a.href = wa.href; }
   const dias = Number(CFG.CAMBIOS_DIAS) || 0;
   if (dias) { $('#confCambios').hidden = false; $('#confCambios span').textContent = `Cambios dentro de los ${dias} días de recibido el pedido`; }
 

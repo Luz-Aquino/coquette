@@ -19,6 +19,7 @@ const TIENDA = {
   CACHE_MIN: 10,           // minutos que se guarda el catálogo en memoria
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
   HOJA_CARRITOS: 'Carritos',
+  CONTACTO: 'hola.novafamilymarket@gmail.com', // las clientas responden los mails a esta dirección
   DESCUENTO_CODIGO: 'HOLA10',   // código de primera compra (vacío = sin descuento)
   DESCUENTO_PORC: 10,           // % de descuento sobre los productos
   AVISO_CARRITO_HORAS: 24       // horas sin comprar antes de mandar el recordatorio
@@ -474,7 +475,7 @@ function admin_(b) {
 function mailPagoCliente_(d) {
   const items = itemsDe_(d);
   MailApp.sendEmail({
-    to: d['Email'], name: TIENDA.NOMBRE,
+    to: d['Email'], name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
     subject: `${TIENDA.NOMBRE} · Recibimos tu pago (pedido ${d['Pedido']})`,
     htmlBody: plantillaMail_(`¡Gracias, ${esc_(String(d['Cliente']).split(' ')[0])}!`,
       `<p>Tu pago fue aprobado. Ya estamos preparando tu pedido <b>${esc_(d['Pedido'])}</b>.</p>` +
@@ -504,7 +505,7 @@ function mailVentaAdmin_(d) {
 function mailEnvio_(d) {
   const seg = d['Seguimiento'] ? `<p>Número de seguimiento de Correo Argentino: <b>${esc_(d['Seguimiento'])}</b><br>Podés seguirlo en <a href="https://www.correoargentino.com.ar">correoargentino.com.ar</a>.</p>` : '';
   MailApp.sendEmail({
-    to: d['Email'], name: TIENDA.NOMBRE,
+    to: d['Email'], name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
     subject: `${TIENDA.NOMBRE} · Tu pedido ${d['Pedido']} está en camino`,
     htmlBody: plantillaMail_('¡Tu pedido salió!', `<p>Despachamos tu pedido <b>${esc_(d['Pedido'])}</b> por Correo Argentino.</p>${seg}<p>Gracias por comprar en ${TIENDA.NOMBRE}.</p>`)
   });
@@ -620,7 +621,7 @@ function avisarCarritos() {
     const filas = lineas.slice(0, 6).map(v => `<tr><td style="padding:6px 10px 6px 0" width="70">${v.imagen ? `<img src="${esc_(v.imagen)}" width="64" style="border-radius:8px;display:block">` : ''}</td><td>${esc_(v.producto)}<br><small style="color:#7a6670">${esc_([v.color, v.talle].filter(Boolean).join(' · '))}</small></td><td align="right">$${fmt_(v.precio)}</td></tr>`).join('');
     const promo = primera && TIENDA.DESCUENTO_CODIGO ? `<p style="background:#FBEBED;padding:12px;border-radius:10px">Como es tu primera compra, usá el código <b>${TIENDA.DESCUENTO_CODIGO}</b> y tenés <b>${TIENDA.DESCUENTO_PORC}% off</b>.</p>` : '';
     MailApp.sendEmail({
-      to: email, name: TIENDA.NOMBRE,
+      to: email, name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
       subject: `${(String(nombre).split(' ')[0] || 'Hola')}, tus prendas te esperan ♡`,
       htmlBody: plantillaMail_('Dejaste algo lindo en tu carrito', `<p>Guardamos tu carrito para que no te lo pierdas.</p>
         <table width="100%" style="border-collapse:collapse;font-size:14px">${filas}</table>${promo}

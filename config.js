@@ -7,5 +7,8 @@ window.COQUET_CONFIG = {
   MINIMO_COMPRA: 100000, // compra mínima en productos (sin envío)
   WHATSAPP: '', // ← cuando tengas la línea, poné acá el número y aparece el botón. Número con código de país, ej: '5491122334455'. Vacío = sin botón
   DESCUENTO: { CODIGO: 'HOLA10', PORCENTAJE: 10 }, // solo para mostrar; el servidor es quien lo valida
+  CONTACTO_EMAIL: 'hola.novafamilymarket@gmail.com',
+  INSTAGRAM: '', // usuario sin @, ej: 'coquette.nfm' (vacío = no se muestra)
+  TIKTOK: '',    // usuario sin @
   CAMBIOS_DIAS: 5 // días para cambios desde que recibe el pedido (0 = no se muestra)
 };
