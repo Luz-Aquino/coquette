@@ -39,10 +39,15 @@
     $('#btnSalir').hidden = false;
     cargarPublicaciones(true);
   }
+  // Salir del panel = cerrar sesión también en la tienda (y que no vuelva a entrar sola)
   function salir() {
-    try { sessionStorage.removeItem('coquet_admin'); localStorage.removeItem('coquet_admin_desde_tienda'); } catch (_) {}
+    try {
+      sessionStorage.removeItem('coquet_admin');
+      ['coquet_admin_desde_tienda', 'coquet_sesion', 'coquet_mis_pedidos'].forEach(k => localStorage.removeItem(k));
+      localStorage.setItem('coquet_sin_auto', '1');
+    } catch (_) {}
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
-    location.reload();
+    location.href = './';
   }
   function error(msg) { const e = $('#errorIngreso'); if (!e) return; e.textContent = msg; e.hidden = !msg; }
 

@@ -692,6 +692,7 @@
     if (!d || !d.email) return;
     st.sesion = { token: credencial, exp: d.exp, email: d.email, nombre: d.name || '', foto: d.picture || '' };
     guardar('coquet_sesion', st.sesion);
+    borrar('coquet_sin_auto');
     tras_sesion();
     programarRenovacion();
     if (!silencioso) tostada(`Hola, ${(st.sesion.nombre || st.sesion.email).split(' ')[0]}`);
@@ -711,6 +712,7 @@
   }
   async function renovarSesion() {
     if (DEMO || !CFG.GOOGLE_CLIENT_ID) return;
+    try { if (localStorage.getItem('coquet_sin_auto')) return; } catch (_) {} // cerró sesión a propósito
     try {
       await cargarGsi();
       google.accounts.id.initialize({ client_id: CFG.GOOGLE_CLIENT_ID, auto_select: true, use_fedcm_for_prompt: true, cancel_on_tap_outside: true,
@@ -728,7 +730,8 @@
   function sesionVencida() { return !st.sesion || (st.sesion.exp && st.sesion.exp * 1000 < Date.now() + 60000); }
   function cerrarSesion(silencioso) {
     st.sesion = null;
-    borrar('coquet_sesion');
+    borrar('coquet_sesion'); borrar('coquet_admin_desde_tienda'); borrar('coquet_mis_pedidos');
+    guardar('coquet_sin_auto', 1);
     try { window.google && google.accounts.id.disableAutoSelect(); } catch (_) {}
     tras_sesion();
     if (!silencioso) tostada('Cerraste sesión.');
