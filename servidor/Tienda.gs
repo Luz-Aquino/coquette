@@ -73,6 +73,7 @@ function doPost(e) {
       case 'crearPedido': return json_(crearPedido_(body));
       case 'misPedidos': return json_(misPedidos_(body));
       case 'guardarCarrito': return json_(guardarCarrito_(body));
+      case 'miCarrito': return json_(miCarrito_(body));
       case 'validarCodigo': return json_(validarCodigo_(body));
       case 'admin': return json_(admin_(body));
       default: return json_({ error: 'Acción desconocida.' });
@@ -336,8 +337,24 @@ function misPedidos_(b) {
   const u = verificarUsuario_(b.idToken);
   return { pedidos: leerPedidos_().filter(p => p['Email'] === u.email).reverse().slice(0, 50).map(p => ({
     pedido: p['Pedido'], fecha: p['Fecha'], estado: p['Estado'], total: p['Total'],
-    productos: p['Productos'], envio: p['Envío'], seguimiento: p['Seguimiento']
+    productos: p['Productos'], envio: p['Envío'], seguimiento: p['Seguimiento'],
+    items: itemsDe_(p).map(l => ({ id: l.id, cantidad: l.cantidad, nombre: l.nombre, detalle: l.detalle, imagen: l.imagen }))
   })) };
+}
+
+// Al iniciar sesión: devuelve el carrito guardado o, si no hay, el último pedido sin pagar (últimos 7 días)
+function miCarrito_(b) {
+  const u = verificarUsuario_(b.idToken);
+  const h = hojaCarritos_();
+  const f = filaCarrito_(h, u.email);
+  if (f) {
+    let items = [];
+    try { items = JSON.parse(h.getRange(f, 3).getValue() || '[]'); } catch (_) {}
+    if (items.length) return { items, origen: 'carrito' };
+  }
+  const limite = Date.now() - 7 * 24 * 3600e3;
+  const p = leerPedidos_().filter(x => String(x['Email']).toLowerCase() === u.email && x['Estado'] === 'Esperando pago' && new Date(x['Fecha']).getTime() > limite).pop();
+  return { items: p ? itemsDe_(p).map(l => ({ id: l.id, cantidad: l.cantidad })) : [], origen: p ? 'pedido' : '' };
 }
 
 /* ===================== MERCADO PAGO ===================== */

@@ -704,7 +704,7 @@
     b.setAttribute('aria-label', st.sesion ? 'Tu cuenta' : 'Ingresar con Google');
     if ($('#dlgCarrito').open && st.paso === 'compra') { prepararCompra(); pintarCarrito(); }
     if ($('#dlgCuenta').open) pintarCuenta();
-    sincronizarCarrito();
+    if (st.carrito.length) sincronizarCarrito(); else recuperarCarrito();
   }
 
   let googleListo = false;
@@ -752,6 +752,61 @@
 
   /* ---------- Cuenta y mis pedidos ---------- */
   function abrirCuenta() { abrir($('#dlgCuenta')); pintarCuenta(); }
+  // Prendas de un pedido que todavía existen y tienen stock (con el precio de hoy)
+  function lineasDePedido(p) {
+    return (p.items || []).map(l => { const x = st.variantes && st.variantes[l.id]; return x && x.v.stock ? { id: l.id, cantidad: l.cantidad, v: x.v, p: x.p } : null; }).filter(Boolean);
+  }
+  function pedidoHtml(p, i) {
+    const sinPagar = p.estado === 'Esperando pago' || p.estado === 'Pago rechazado';
+    const fotos = (p.items || []).slice(0, 4).map(l => {
+      const x = st.variantes && st.variantes[l.id];
+      const src = l.imagen || (x && (x.v.imagen || x.p.imagenes[0])) || '';
+      return src ? `<img src="${esc(src)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '';
+    }).join('');
+    let accion = '';
+    if (sinPagar) {
+      const lineas = lineasDePedido(p);
+      const minimo = Number(CFG.MINIMO_COMPRA) || 0;
+      const sub = lineas.reduce((a, l) => a + l.v.precio * l.cantidad, 0);
+      const falta = Math.max(0, minimo - sub);
+      accion = !lineas.length ? '<p class="aviso-chico">Las prendas de este pedido ya no tienen stock.</p>'
+        : falta ? `<div class="progreso-minimo"><p class="progreso-texto">Te faltan <b>${fmt(falta)}</b> para la compra mínima de ${fmt(minimo)}</p><div class="progreso-barra"><i style="width:${Math.min(100, sub / minimo * 100)}%"></i></div></div>
+            <button class="boton secundario ancho" data-retomar="${i}">Sumar prendas y comprar</button>`
+        : `<button class="boton principal ancho" data-retomar="${i}">Comprar ahora · ${fmt(sub)}</button>`;
+    }
+    const estado = p.estado === 'Esperando pago' ? 'Sin pagar' : p.estado;
+    return `<div class="pedido-mini">
+        <div class="pedido-cabeza"><b>${esc(p.pedido)}</b> <span class="estado ${esc(String(p.estado).replace(/\s+/g, '-'))}">${esc(estado)}</span></div>
+        ${fotos ? `<div class="pedido-fotos">${fotos}</div>` : ''}
+        <p>${esc(p.productos)}</p>
+        <p>Total ${fmt(p.total)} · ${new Date(p.fecha).toLocaleDateString('es-AR')}</p>
+        ${p.seguimiento ? `<p>Seguimiento Correo Argentino: <b>${esc(p.seguimiento)}</b></p>` : ''}
+        ${accion}
+      </div>`;
+  }
+  // Pasa las prendas al carrito (sin duplicar) y lo abre
+  function cargarEnCarrito(items) {
+    items.forEach(l => {
+      if (!st.variantes || !st.variantes[l.id] || !st.variantes[l.id].v.stock) return;
+      const ya = st.carrito.find(x => x.id === l.id);
+      if (ya) ya.cantidad = Math.max(ya.cantidad, l.cantidad);
+      else st.carrito.push({ id: String(l.id), pid: st.variantes[l.id].p.id, cantidad: Math.min(20, l.cantidad) });
+    });
+    guardarCarrito();
+  }
+  async function recuperarCarrito() {
+    if (DEMO || !CFG.API_URL || !st.sesion || sesionVencida() || st.carrito.length || recuperarCarrito.hecho) return;
+    recuperarCarrito.hecho = true;
+    try {
+      const r = await post({ action: 'miCarrito', idToken: st.sesion.token });
+      if (r.error || !r.items || !r.items.length || st.carrito.length) return;
+      for (let i = 0; i < 20 && !(st.variantes && Object.keys(st.variantes).length); i++) await new Promise(ok => setTimeout(ok, 500));
+      cargarEnCarrito(r.items);
+      const n = st.carrito.reduce((a, l) => a + l.cantidad, 0);
+      if (n) tostada(r.origen === 'pedido' ? 'Recuperamos las prendas de tu pedido sin pagar' : `Recuperamos tu carrito (${n} ${n === 1 ? 'prenda' : 'prendas'})`, 'Ver', abrirCarrito);
+    } catch (_) {}
+  }
+
   async function pintarCuenta() {
     const dentro = !!st.sesion;
     $('#cuentaFuera').hidden = dentro;
@@ -766,12 +821,8 @@
     try {
       const r = await post({ action: 'misPedidos', idToken: st.sesion.token });
       if (r.error) throw new Error(r.error);
-      cont.innerHTML = r.pedidos.length ? r.pedidos.map(p => `<div class="pedido-mini">
-          <b>${esc(p.pedido)}</b> <span class="estado ${esc(String(p.estado).replace(/\s+/g, '-'))}">${esc(p.estado)}</span>
-          <p>${esc(p.productos)}</p>
-          <p>Total ${fmt(p.total)} · ${new Date(p.fecha).toLocaleDateString('es-AR')}</p>
-          ${p.seguimiento ? `<p>Seguimiento Correo Argentino: <b>${esc(p.seguimiento)}</b></p>` : ''}
-        </div>`).join('') : '<p>Todavía no hiciste pedidos.</p>';
+      st.misPedidos = r.pedidos;
+      cont.innerHTML = r.pedidos.length ? r.pedidos.map(pedidoHtml).join('') : '<p>Todavía no hiciste pedidos.</p>';
     } catch (err) { cont.innerHTML = `<p class="error">${esc(err.message)}</p>`; }
   }
 
@@ -828,6 +879,13 @@
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
+  $('#misPedidos').addEventListener('click', e => {
+    const b = e.target.closest('[data-retomar]'); if (!b || !st.misPedidos) return;
+    const p = st.misPedidos[Number(b.dataset.retomar)];
+    cargarEnCarrito(lineasDePedido(p));
+    cerrar($('#dlgCuenta'));
+    abrirCarrito();
+  });
   $('#lookLista').addEventListener('click', e => { if (e.target.closest('a')) cerrar($('#dlgCarrito')); });
   $('#formCodigo').addEventListener('submit', async e => {
     e.preventDefault();
@@ -900,7 +958,6 @@
 
   $('#btnCuenta').addEventListener('click', () => { if (!st.sesion && !DEMO) location.href = 'login.html?volver=cuenta'; else abrirCuenta(); });
   $('#linkMisPedidos').addEventListener('click', e => { e.preventDefault(); abrirCuenta(); });
-  $('#btnSalir').addEventListener('click', () => cerrarSesion());
 
   document.addEventListener('error', e => {
     const img = e.target;

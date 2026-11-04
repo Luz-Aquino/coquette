@@ -934,3 +934,10 @@ html { overflow-x: hidden; overflow-x: clip; }
 .social svg { width: 20px; height: 20px; fill: currentColor; }
 a.social[href]:hover { background: var(--bordo); color: #fff; transform: translateY(-2px); }
 .social.pronto { cursor: default; }
+
+/* ---------- Mis pedidos con fotos ---------- */
+.pedido-cabeza { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pedido-fotos { display: flex; gap: 8px; margin: 10px 0 4px; }
+.pedido-fotos img { width: 64px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 8px; background: var(--rosa); box-shadow: 0 0 0 2px #fff, 0 6px 12px -8px rgba(92,18,41,.5); }
+.pedido-mini .progreso-minimo { margin: 12px 0 8px; }
+.pedido-mini .boton { margin-top: 8px; }
