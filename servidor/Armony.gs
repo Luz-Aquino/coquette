@@ -27,7 +27,7 @@ const ARMONY = {
 const COLUMNAS_ARMONY = [
   'Clave', 'ID Producto', 'Producto', 'Categoría', 'Color', 'Talle', 'Otras opciones',
   'Costo', 'Precio venta', 'Precio regular', 'En oferta', 'Stock', 'Stock restante',
-  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta'
+  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta', 'Aviso'
 ];
 
 /* ===================== FUNCIÓN PRINCIPAL ===================== */
@@ -54,6 +54,8 @@ function syncArmony() {
     if (!filas.length) throw new Error('No se obtuvo ningún producto. La hoja no se modificó.');
 
     escribirHoja_(hoja, filas);
+    // Productos nuevos quedan "Pendiente" hasta que Luz los publique desde el panel (función en Tienda.gs)
+    if (typeof registrarPublicaciones_ === 'function') registrarPublicaciones_(filas);
     const alertas = compararEstados_(anterior, filas).concat(alertasRevisar_(filas));
     registrarAlertas_(ss, alertas);
 
@@ -179,7 +181,7 @@ function armarFila_(clave, p, nombre, categoria, opc, datos, imagenes, descripci
   return [
     clave, p.id, nombre, categoria, opc.color, opc.talle, opc.otras,
     costo, '', regular, oferta, stock, restante, // el precio de venta se calcula en definirPrecios_
-    imagenes[0] || '', imagenes.join(', '), descripcion, p.permalink, ahora, ''
+    imagenes[0] || '', imagenes.join(', '), descripcion, p.permalink, ahora, '', ''
   ];
 }
 
@@ -280,6 +282,7 @@ function definirPrecios_(filas) {
       else if (tipo === 'Promo x3' && minU[id] && costo < minU[id] * 1.5) motivo = `La promo x3 cuesta casi lo mismo que una unidad ($${costo} vs $${minU[id]})`;
       else if (tipo === 'Pack x6' && minU[id] && costo < minU[id] * 2.5) motivo = `El pack x6 cuesta casi lo mismo que pocas unidades ($${costo} vs $${minU[id]})`;
     }
+    f[c('Aviso')] = motivo;
     if (motivo) { f[c('Tipo venta')] = 'Revisar'; f[c('Precio venta')] = ''; MOTIVOS_REVISAR[String(f[c('Clave')])] = motivo; }
     else f[c('Precio venta')] = precioVenta_(f[c('Costo')], tipo === 'Pack x6', tipo === 'Promo x3');
   });
@@ -427,7 +430,7 @@ function registrarAlertas_(ss, alertas) {
 // Mail agrupado por producto: "VESTIDO LISBOA — Agotado: Negro / M, Blanco / L"
 function enviarMailAlertas_(ss, alertas) {
   if (!ARMONY.EMAIL) return;
-  const titulos = { REVISAR: '⚠️ PRECIOS PARA REVISAR (ocultos en la tienda hasta que se corrijan)', AGOTADO: '🔴 SIN STOCK', Nuevo: '🆕 PRODUCTOS NUEVOS' };
+  const titulos = { REVISAR: '⚠️ PRECIOS PARA REVISAR (ocultos en la tienda hasta que se corrijan)', AGOTADO: '🔴 SIN STOCK', Nuevo: '🆕 PRODUCTOS NUEVOS (esperan tu aprobación en el panel para aparecer en la tienda)' };
   const secciones = [];
   let total = 0;
 

@@ -51,3 +51,37 @@
   .acciones { grid-template-columns: 1fr 1fr; }
   .acciones .ancha { grid-column: 1 / -1; }
 }
+
+/* ---------- Pestañas ---------- */
+.pestanas { display: flex; gap: 6px; margin: 0 0 18px; padding: 4px; border-radius: 26px; background: var(--rosa-claro); border: var(--borde); width: max-content; max-width: 100%; }
+.pestanas button { height: 40px; padding: 0 18px; border: 0; border-radius: 22px; background: none; font: 600 15px var(--sans); color: var(--ciruela); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.pestanas button[aria-pressed="true"] { background: #fff; color: var(--bordo); box-shadow: 0 1px 4px rgba(92,18,41,.15); }
+.pestana-n { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--bordo); color: #fff; font-size: 12px; line-height: 20px; text-align: center; }
+.pestana-n[hidden] { display: none; }
+
+/* ---------- Publicaciones ---------- */
+.pub-ayuda { margin: -6px 0 16px; color: var(--gris); font-size: 14px; }
+.pub-lista { display: grid; gap: 12px; }
+.pub { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 14px; padding: 14px; background: #fff; border: var(--borde); border-radius: 14px; }
+.pub.Pendiente { border-color: #E7B7C4; box-shadow: 0 0 0 3px #FBEBED; }
+.pub-foto { width: 110px; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; background: var(--rosa); }
+.pub-cabeza { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.pub-cabeza h3 { margin: 0; font: 500 19px/1.2 var(--serif); }
+.pub-meta { margin: 4px 0 8px; font-size: 13px; color: var(--gris); }
+.pub-precios { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 3px; font-size: 14px; }
+.pub-precios small { color: var(--gris); margin-left: 6px; }
+.pub-aviso { margin: 8px 0; padding: 10px 12px; border-radius: 10px; background: #FFF6E0; border: 1px solid #F0D58C; font-size: 13px; color: #6B4E0F; }
+.pub-aviso ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 3px; }
+.pub-links { margin: 8px 0 0; font-size: 14px; }
+.pub-links a { color: var(--bordo); }
+.pub-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pub-botones .boton { min-height: 42px; }
+.estado.pub-Pendiente { background: #FBEBED; color: var(--bordo); }
+.estado.pub-Publicado { background: #E3F1E6; color: #2E6B3F; }
+.estado.pub-Oculto { background: #EEE; color: #666; }
+@media (max-width: 520px) {
+  .pub { grid-template-columns: 78px minmax(0, 1fr); gap: 10px; }
+  .pub-foto { width: 78px; }
+  .pub-botones .boton { flex: 1 1 100%; }
+}
+#buscarPub { height: 44px; padding: 0 16px; border-radius: 22px; border: var(--borde); background: #fff; font-size: 16px; }

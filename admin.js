@@ -4,9 +4,10 @@
   const CFG = window.COQUET_CONFIG || {};
   const DEMO = !CFG.API_URL;
   const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
   const fmt = n => n === '' || n == null ? '—' : '$' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const st = { token: null, email: '', pedidos: [], estados: [], filtro: 'activos', q: '' };
+  const st = { token: null, email: '', pedidos: [], estados: [], filtro: 'activos', q: '', pubs: null, filtroPub: 'Pendiente', qPub: '' };
   const ACTIVOS = ['Pagado', 'Preparando', 'Revisar pago', 'Pago pendiente'];
 
   function tostada(msg) {
@@ -36,6 +37,7 @@
     $('#panel').hidden = false;
     $('#adminEmail').textContent = st.email;
     $('#btnSalir').hidden = false;
+    cargarPublicaciones(true);
   }
   function salir() {
     try { sessionStorage.removeItem('coquet_admin'); } catch (_) {}
@@ -177,7 +179,81 @@
     return false;
   }
 
+  /* ---------- Publicaciones ---------- */
+  const TIENDA_URL = (CFG.SITE_URL || 'https://coquette.novafamilymarket.com/').replace(/\/?$/, '/');
+  async function cargarPublicaciones(silencioso) {
+    if (!silencioso) $('#listaPub').innerHTML = '<p>Cargando productos…</p>';
+    try {
+      const r = await post({ action: 'admin', op: 'publicaciones', idToken: st.token });
+      if (r.error) throw new Error(r.error);
+      st.pubs = r.productos;
+      const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
+      $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
+      pintarPublicaciones();
+    } catch (e) { if (!silencioso) $('#listaPub').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  }
+  const rango = (a, b) => a === b ? fmt(a) : `${fmt(a)} a ${fmt(b)}`;
+  const NOMBRE_TIPO = { 'Unidad': 'Por unidad', 'Promo x3': 'Promo x3', 'Pack x6': 'Pack x6' };
+  function pintarPublicaciones() {
+    if (!st.pubs) return;
+    const ps = st.pubs;
+    const grupos = { Pendiente: p => p.estado === 'Pendiente', avisos: p => p.avisos.length > 0, Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
+    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Con avisos', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
+    $('#filtrosPub').innerHTML = Object.keys(grupos).map(k => `<button class="chip" data-fp="${k}" aria-pressed="${st.filtroPub === k}">${nombres[k]}<span>${ps.filter(grupos[k]).length}</span></button>`).join('');
+    const q = st.qPub.toLowerCase().trim();
+    const lista = ps.filter(grupos[st.filtroPub]).filter(p => !q || p.nombre.toLowerCase().includes(q));
+    $('#listaPub').innerHTML = lista.length ? lista.map(pubHtml).join('') : `<div class="vacio"><p>${st.filtroPub === 'Pendiente' ? 'No hay productos esperando. Cuando Armony publique algo nuevo, aparece acá.' : 'No hay productos en esta vista.'}</p></div>`;
+  }
+  function pubHtml(p) {
+    const precios = Object.keys(p.tipos).sort((a, b) => ['Unidad', 'Promo x3', 'Pack x6'].indexOf(a) - ['Unidad', 'Promo x3', 'Pack x6'].indexOf(b)).map(t => {
+      const x = p.tipos[t];
+      return `<li><b>${esc(NOMBRE_TIPO[t] || t)}</b> ${rango(x.min, x.max)} <small>costo ${rango(x.costoMin, x.costoMax)}</small></li>`;
+    }).join('');
+    const avisos = p.avisos.length ? `<div class="pub-aviso"><b>⚠️ ${p.avisos.length === 1 ? '1 variante con precio dudoso' : p.avisos.length + ' variantes con precio dudoso'}</b> (no se venden hasta que se corrija)
+        <ul>${p.avisos.slice(0, 12).map(a => `<li>${esc(a.variante)} · costo ${fmt(a.costo)} — ${esc(a.motivo)}</li>`).join('')}${p.avisos.length > 12 ? `<li>…y ${p.avisos.length - 12} más</li>` : ''}</ul></div>` : '';
+    const etiqueta = { Pendiente: 'Para revisar', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado;
+    const botones = [
+      p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar en la tienda</button>` : '',
+      p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar de la tienda' : 'No publicar'}</button>` : ''
+    ].join('');
+    return `<article class="pub ${esc(p.estado)}">
+        <img class="pub-foto" src="${esc(p.imagen)}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <div class="pub-info">
+          <div class="pub-cabeza"><h3>${esc(p.nombre)}</h3><span class="estado pub-${esc(p.estado)}">${esc(etiqueta)}</span></div>
+          <p class="pub-meta">${esc(p.categoria)} · ${p.conStock} de ${p.variantes} variantes con stock${p.detectado ? ' · llegó el ' + new Date(p.detectado).toLocaleDateString('es-AR') : ''}</p>
+          <ul class="pub-precios">${precios || '<li>Sin precios válidos todavía</li>'}</ul>
+          ${avisos}
+          <p class="pub-links"><a href="${esc(p.link)}" target="_blank" rel="noopener">Ver publicación original en Armony ↗</a>${p.estado === 'Publicado' ? ` · <a href="${TIENDA_URL}#p-${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Ver en mi tienda ↗</a>` : ''}</p>
+          <div class="pub-botones">${botones}</div>
+        </div>
+      </article>`;
+  }
+  async function cambiarPublicacion(btn) {
+    const id = btn.dataset.pub, estado = btn.dataset.estado;
+    btn.disabled = true;
+    try {
+      const r = await post({ action: 'admin', op: 'publicar', idToken: st.token, pid: id, estado });
+      if (r.error) throw new Error(r.error);
+      st.pubs.find(p => p.id === id).estado = estado;
+      const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
+      $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
+      tostada(estado === 'Publicado' ? 'Publicado: ya se ve en la tienda.' : 'Listo: no se muestra en la tienda.');
+      pintarPublicaciones();
+    } catch (e) { tostada(e.message); btn.disabled = false; }
+  }
+  function verVista(v) {
+    $$('.pestanas [data-vista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.vista === v));
+    $('#vistaPedidos').hidden = v !== 'pedidos';
+    $('#vistaPublicaciones').hidden = v !== 'publicaciones';
+    if (v === 'publicaciones' && !st.pubs) cargarPublicaciones();
+  }
+
   /* ---------- Eventos ---------- */
+  $$('.pestanas [data-vista]').forEach(b => b.addEventListener('click', () => verVista(b.dataset.vista)));
+  $('#filtrosPub').addEventListener('click', e => { const b = e.target.closest('[data-fp]'); if (b) { st.filtroPub = b.dataset.fp; pintarPublicaciones(); } });
+  $('#buscarPub').addEventListener('input', e => { st.qPub = e.target.value; pintarPublicaciones(); });
+  $('#btnRecargarPub').addEventListener('click', () => cargarPublicaciones());
+  $('#listaPub').addEventListener('click', e => { const b = e.target.closest('[data-pub]'); if (b) cambiarPublicacion(b); });
   $('#filtros').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { st.filtro = b.dataset.f; pintar(); } });
   $('#buscar').addEventListener('input', e => { st.q = e.target.value; pintar(); });
   $('#btnRecargar').addEventListener('click', cargar);
@@ -193,6 +269,15 @@
 
   /* ---------- Datos de demostración ---------- */
   function demo(b) {
+    if (b.op === 'publicar') return Promise.resolve({ ok: true });
+    if (b.op === 'publicaciones') {
+      const img = 'https://armonyfabricantes.com.ar/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-09-at-15.04.43-2-600x800.jpeg';
+      return Promise.resolve({ productos: [
+        { id: '9001', nombre: 'VESTIDO PUCCA', categoria: 'VESTIDOS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Pendiente', detectado: new Date().toISOString(), variantes: 18, conStock: 18, tipos: { 'Unidad': { min: 35000, max: 35000, costoMin: 14000, costoMax: 14000 }, 'Pack x6': { min: 168000, max: 168000, costoMin: 84000, costoMax: 84000 } }, avisos: [] },
+        { id: '9002', nombre: 'VESTIDO CORTO LISBOA LISO', categoria: 'VESTIDOS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Pendiente', detectado: new Date().toISOString(), variantes: 27, conStock: 27, tipos: { 'Unidad': { min: 41000, max: 41000, costoMin: 16400, costoMax: 16400 }, 'Pack x6': { min: 196800, max: 196800, costoMin: 98400, costoMax: 98400 } }, avisos: [{ variante: 'Blanco / 4 / Unidad: x6 Surtidas', costo: 16400, motivo: 'Precio muy distinto al resto (Pack x6: $16400 y lo normal es $98400)' }] },
+        { id: '9003', nombre: 'BLUSA CANDELA LISO', categoria: 'CAMISAS | BLUSAS | BODYS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Publicado', detectado: '', variantes: 6, conStock: 4, tipos: { 'Unidad': { min: 22250, max: 22250, costoMin: 8900, costoMax: 8900 } }, avisos: [] }
+      ] });
+    }
     if (b.op === 'actualizar') return Promise.resolve({ ok: true, avisoEnviado: b.estado === 'Enviado' });
     const img = 'https://armonyfabricantes.com.ar/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-09-at-15.04.43-2-600x800.jpeg';
     const hoy = Date.now();

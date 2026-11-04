@@ -19,12 +19,14 @@ const TIENDA = {
   CACHE_MIN: 10,           // minutos que se guarda el catálogo en memoria
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
   HOJA_CARRITOS: 'Carritos',
+  HOJA_PUBLICACION: 'Publicación', // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
   CONTACTO: 'hola.novafamilymarket@gmail.com', // las clientas responden los mails a esta dirección
   DESCUENTO_CODIGO: 'HOLA10',   // código de primera compra (vacío = sin descuento)
   DESCUENTO_PORC: 10,           // % de descuento sobre los productos
   AVISO_CARRITO_HORAS: 24       // horas sin comprar antes de mandar el recordatorio
 };
 
+const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido'];
 const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
 const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 
@@ -146,7 +148,10 @@ function leerVariantes_() {
     imagen: String(f[i('Imagen principal')] || ''),
     imagenes: String(f[i('Todas las imágenes')] || ''),
     descripcion: String(f[i('Descripción')] || ''),
-    link: String(f[i('Link')] || '')
+    link: String(f[i('Link')] || ''),
+    costo: Number(f[i('Costo')]) || 0,
+    otras: String(f[i('Otras opciones')] || ''),
+    aviso: i('Aviso') >= 0 ? String(f[i('Aviso')] || '') : ''
   })).filter(v => v.clave && v.pid);
 }
 
@@ -173,7 +178,85 @@ function armarCatalogo_(vars) {
       precio: v.precio, stock: v.stock !== 'Agotado', imagen: v.imagen
     });
   });
-  return orden.map(id => prods[id]).filter(p => p.variantes.some(v => v.stock));
+  const estados = estadosPublicacion_();
+  return orden.map(id => prods[id]).filter(p => p.variantes.some(v => v.stock) && (!estados || estados[p.id] === 'Publicado'));
+}
+
+/* ===================== PUBLICACIÓN (aprobación de Luz) ===================== */
+
+// null = todavía no existe la hoja (se muestra todo, como antes)
+function estadosPublicacion_() {
+  const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_PUBLICACION);
+  if (!h || h.getLastRow() < 2) return null;
+  const m = {};
+  h.getRange(2, 1, h.getLastRow() - 1, 3).getValues().forEach(f => { if (f[0] !== '') m[String(f[0])] = String(f[2]); });
+  return m;
+}
+
+// Lo llama la sincronización de Armony: agrega los productos nuevos como "Pendiente" y actualiza los avisos
+function registrarPublicaciones_(filas) {
+  const C = COLUMNAS_ARMONY, c = n => C.indexOf(n);
+  const prods = {}, orden = [];
+  filas.forEach(f => {
+    const id = String(f[c('ID Producto')]);
+    if (!prods[id]) { prods[id] = { nombre: f[c('Producto')], link: f[c('Link')], avisos: [] }; orden.push(id); }
+    const av = f[c('Aviso')];
+    if (av) prods[id].avisos.push(`${[f[c('Color')], f[c('Talle')], f[c('Otras opciones')]].filter(Boolean).join(' / ')}: ${av}`);
+  });
+  conLock_(() => {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let h = ss.getSheetByName(TIENDA.HOJA_PUBLICACION);
+    const primeraVez = !h;
+    if (!h) {
+      h = ss.insertSheet(TIENDA.HOJA_PUBLICACION);
+      h.getRange(1, 1, 1, COLUMNAS_PUBLICACION.length).setValues([COLUMNAS_PUBLICACION]).setFontWeight('bold');
+      h.setFrozenRows(1);
+    }
+    const n = h.getLastRow() - 1;
+    const datos = n > 0 ? h.getRange(2, 1, n, COLUMNAS_PUBLICACION.length).getValues() : [];
+    const fila = {};
+    datos.forEach((f, i) => { fila[String(f[0])] = i; });
+    const ahora = new Date();
+    orden.forEach(id => {
+      const p = prods[id], avisos = p.avisos.slice(0, 20).join('\n').slice(0, 2000);
+      if (fila[id] !== undefined) {
+        const f = datos[fila[id]];
+        f[1] = p.nombre; f[3] = avisos; f[4] = p.link;
+      } else {
+        // La primera vez, lo que ya estaba a la venta queda publicado; lo que aparece después espera aprobación
+        datos.push([id, p.nombre, primeraVez ? 'Publicado' : 'Pendiente', avisos, p.link, ahora, primeraVez ? ahora : '']);
+      }
+    });
+    if (datos.length) h.getRange(2, 1, datos.length, COLUMNAS_PUBLICACION.length).setValues(datos);
+  });
+  limpiarCacheCatalogo();
+}
+
+// Para el panel: todos los productos con su estado, precios, variantes y avisos
+function listaPublicaciones_() {
+  const estados = estadosPublicacion_() || {};
+  const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_PUBLICACION);
+  const extra = {};
+  if (h && h.getLastRow() > 1) h.getRange(2, 1, h.getLastRow() - 1, COLUMNAS_PUBLICACION.length).getValues()
+    .forEach(f => { extra[String(f[0])] = { detectado: f[5] instanceof Date ? f[5].toISOString() : '', decidido: f[6] instanceof Date ? f[6].toISOString() : '' }; });
+  const prods = {}, orden = [];
+  leerVariantes_().forEach(v => {
+    let p = prods[v.pid];
+    if (!p) {
+      p = prods[v.pid] = { id: v.pid, nombre: v.producto, categoria: v.categoria, link: v.link, imagen: v.imagen,
+        estado: estados[v.pid] || 'Publicado', detectado: (extra[v.pid] || {}).detectado || '', variantes: 0, conStock: 0, tipos: {}, avisos: [] };
+      orden.push(v.pid);
+    }
+    p.variantes++;
+    if (v.stock !== 'Agotado') p.conStock++;
+    if (v.aviso) p.avisos.push({ variante: [v.color, v.talle, v.otras].filter(Boolean).join(' / '), motivo: v.aviso, costo: v.costo });
+    else if (v.precio) {
+      const t = p.tipos[v.tipo] = p.tipos[v.tipo] || { min: Infinity, max: 0, costoMin: Infinity, costoMax: 0 };
+      t.min = Math.min(t.min, v.precio); t.max = Math.max(t.max, v.precio);
+      t.costoMin = Math.min(t.costoMin, v.costo); t.costoMax = Math.max(t.costoMax, v.costo);
+    }
+  });
+  return orden.map(id => prods[id]);
 }
 
 function leerEnvios_() {
@@ -482,6 +565,24 @@ function admin_(b) {
     });
     if (avisarEnvio) { try { mailEnvio_(datos); } catch (e) { Logger.log('Mail envío: ' + e); } }
     return { ok: true, avisoEnviado: avisarEnvio };
+  }
+
+  if (b.op === 'publicaciones') return { productos: listaPublicaciones_() };
+
+  if (b.op === 'publicar') {
+    const id = String(b.pid || ''), estado = ['Publicado', 'Pendiente', 'Oculto'].indexOf(b.estado) >= 0 ? b.estado : '';
+    if (!id || !estado) throw new Error('Faltan datos.');
+    conLock_(() => {
+      const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_PUBLICACION);
+      if (!h || h.getLastRow() < 2) throw new Error('Todavía no hay productos registrados.');
+      const ids = h.getRange(2, 1, h.getLastRow() - 1, 1).getValues().map(f => String(f[0]));
+      const i = ids.indexOf(id);
+      if (i < 0) throw new Error('No encontré ese producto.');
+      h.getRange(i + 2, 3).setValue(estado);
+      h.getRange(i + 2, 7).setValue(new Date());
+    });
+    limpiarCacheCatalogo();
+    return { ok: true };
   }
 
   throw new Error('Operación desconocida.');
