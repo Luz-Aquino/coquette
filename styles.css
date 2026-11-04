@@ -894,3 +894,5 @@ body.bloqueado .whatsapp { z-index: 0; }
 .red[hidden] { display: none; }
 .red:hover { background: #FBEBED; }
 .red svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.red span { overflow-wrap: anywhere; }
+.red { max-width: 100%; height: auto; min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
