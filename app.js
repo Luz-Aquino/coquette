@@ -518,19 +518,29 @@
     const lineas = lineasCarrito();
     $('#carritoVacio').hidden = lineas.length > 0;
     $('#cajonPie').hidden = !lineas.length;
-    $('#lineas').innerHTML = lineas.map(l => `<li class="linea">
-        <img src="${esc(l.v.imagen || l.p.imagenes[0] || '')}" alt="" referrerpolicy="no-referrer">
-        <div>
-          <h3>${esc(l.p._nombre)}</h3>
-          <p>${esc([prendasDe(l.v.tipo) > 1 ? l.v.tipo : '', nombreLindo(l.v.color), l.v.talle ? 'Talle ' + l.v.talle : ''].filter(Boolean).join(', '))}</p>
-          <div class="cantidad" aria-label="Cantidad">
-            <button type="button" data-linea="${esc(l.id)}" data-delta="-1" aria-label="Restar uno">−</button>
-            <output>${l.cantidad}</output>
-            <button type="button" data-linea="${esc(l.id)}" data-delta="1" aria-label="Sumar uno">+</button>
-          </div>
+    // Una tarjeta por prenda; adentro, una fila por cada color / talle / tipo
+    const grupos = [];
+    lineas.forEach(l => { let g = grupos.find(x => x.p.id === l.p.id); if (!g) grupos.push(g = { p: l.p, lineas: [] }); g.lineas.push(l); });
+    const detalle = l => [prendasDe(l.v.tipo) > 1 ? l.v.tipo : '', nombreLindo(l.v.color), l.v.talle ? 'Talle ' + l.v.talle : ''].filter(Boolean).join(' · ') || 'Única';
+    $('#lineas').innerHTML = grupos.map(g => {
+      const n = g.lineas.reduce((a, l) => a + l.cantidad, 0), tot = g.lineas.reduce((a, l) => a + l.v.precio * l.cantidad, 0);
+      return `<li class="linea">
+        <img src="${esc(g.lineas[0].v.imagen || g.p.imagenes[0] || '')}" alt="" referrerpolicy="no-referrer">
+        <div class="linea-info">
+          <div class="linea-cabeza"><h3>${esc(g.p._nombre)}</h3><b>${fmt(tot)}</b></div>
+          ${g.lineas.length > 1 ? `<p class="linea-total">${n} prendas</p>` : ''}
+          <ul class="linea-variantes">${g.lineas.map(l => `<li>
+            <span class="var-det">${esc(detalle(l))}<small>${fmt(l.v.precio)} c/u</small></span>
+            <div class="cantidad" aria-label="Cantidad">
+              <button type="button" data-linea="${esc(l.id)}" data-delta="-1" aria-label="Restar uno">−</button>
+              <output>${l.cantidad}</output>
+              <button type="button" data-linea="${esc(l.id)}" data-delta="1" aria-label="Sumar uno">+</button>
+            </div>
+            <button type="button" class="quitar" data-quitar="${esc(l.id)}" aria-label="Quitar ${esc(detalle(l))}">✕</button>
+          </li>`).join('')}</ul>
         </div>
-        <div class="linea-precio">${fmt(l.v.precio * l.cantidad)}<button type="button" class="quitar" data-quitar="${esc(l.id)}">Quitar</button></div>
-      </li>`).join('');
+      </li>`;
+    }).join('');
     const sub = subtotal();
     $('#tSubtotal').textContent = fmt(sub);
     const desc = st.codigo && st.paso === 'compra' ? Math.round(sub * st.codigo.porcentaje) / 100 : 0;

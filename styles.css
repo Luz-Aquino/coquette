@@ -1004,3 +1004,15 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .cotizar-datos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
 .cotizar-cp input { height: 46px; padding: 0 12px; border-radius: 10px; border: var(--borde); background: #fff; font: inherit; font-weight: 400; font-size: 16px; min-width: 0; }
 @media (max-width: 360px) { .cotizar-datos { grid-template-columns: 1fr; } }
+
+/* ---------- Carrito agrupado por prenda ---------- */
+.linea { grid-template-columns: 76px minmax(0, 1fr); align-items: start; }
+.linea-cabeza { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; }
+.linea-cabeza b { font-weight: 700; white-space: nowrap; }
+.linea-total { margin: 2px 0 0 !important; }
+.linea-variantes { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.linea-variantes li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: #FBEBED66; }
+.var-det { font-size: 13px; color: var(--ciruela); }
+.var-det small { display: block; color: var(--gris); font-size: 12px; }
+.linea-variantes .quitar { width: 30px; height: 30px; border-radius: 50%; border: 0; background: #fff; color: var(--gris); font-size: 13px; text-decoration: none; cursor: pointer; padding: 0; }
+.linea-variantes .quitar:hover { color: var(--bordo); }
