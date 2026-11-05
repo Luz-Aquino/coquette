@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611051421">
-  <link rel="stylesheet" href="admin.css?v=202611051421">
+  <link rel="stylesheet" href="styles.css?v=202611051446">
+  <link rel="stylesheet" href="admin.css?v=202611051446">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -41,6 +41,15 @@
         <button class="boton secundario" id="btnRecargar">Actualizar</button>
       </div>
       <div class="resumen" id="resumen"></div>
+      <form class="entrega-codigo" id="formCodigo" autocomplete="off">
+        <h2>🤝 Entrega en punto de encuentro</h2>
+        <p>Pedile a la clienta su código (le llegó por mail) y escribilo acá.</p>
+        <div class="entrega-fila">
+          <input id="codigoEntrega" maxlength="6" placeholder="Ej: BNB95T" aria-label="Código de entrega" autocapitalize="characters" spellcheck="false">
+          <button class="boton principal" type="submit">Validar</button>
+        </div>
+        <div id="resultadoCodigo" aria-live="polite"></div>
+      </form>
       <div class="admin-filtros">
         <nav class="categorias admin-estados" id="filtros" aria-label="Filtrar por estado"></nav>
         <input type="search" id="buscar" placeholder="Buscar por pedido, nombre, email o teléfono" aria-label="Buscar pedidos">
@@ -111,8 +120,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611051421"></script>
+  <script src="config.js?v=202611051446"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611051421"></script>
+  <script src="admin.js?v=202611051446"></script>
 </body>
 </html>

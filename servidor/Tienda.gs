@@ -20,6 +20,10 @@ const TIENDA = {
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
   HOJA_CARRITOS: 'Carritos',
   HOJA_PUBLICACION: 'Publicación',
+  // Punto de encuentro (entrega en mano, gratis). Solo para CABA y GBA.
+  ENCUENTRO_DIA: 'sábados', ENCUENTRO_HORA: '12:00 hs',
+  ENCUENTRO_LUGAR: '',              // vacío = "te confirmamos el lugar por mail"
+  ENCUENTRO_PROVINCIAS: ['CABA', 'Buenos Aires (GBA)'],
   HOJA_FOTOS: 'Fotos',              // fotos propias de Luz por producto (reemplazan a las de Armony)
   CARPETA_FOTOS: 'Coquette – Fotos', // carpeta de Google Drive donde se guardan // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
   CONTACTO: 'hola.novafamilymarket@gmail.com', // las clientas responden los mails a esta dirección
@@ -36,7 +40,7 @@ const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 const COLUMNAS_PEDIDOS = [
   'Pedido', 'Fecha', 'Estado', 'Email', 'Cliente', 'Teléfono', 'DNI', 'Envío', 'Dirección',
   'Ciudad', 'Provincia', 'CP', 'Productos', 'Subtotal', 'Costo envío', 'Total',
-  'Pago MP', 'Estado MP', 'Seguimiento', 'Notas', 'Items', 'Mail pago'
+  'Pago MP', 'Estado MP', 'Seguimiento', 'Notas', 'Items', 'Mail pago', 'Código entrega'
 ];
 
 const ESTADOS = ['Esperando pago', 'Pago pendiente', 'Pagado', 'Preparando', 'Enviado', 'Entregado', 'Pago rechazado', 'Cancelado', 'Revisar pago'];
@@ -493,6 +497,7 @@ function catalogo_() {
     tienda: TIENDA.NOMBRE,
     cuotas: TIENDA.CUOTAS_MAX,
     provincias: PROVINCIAS,
+    encuentro: { dia: TIENDA.ENCUENTRO_DIA, hora: TIENDA.ENCUENTRO_HORA, lugar: TIENDA.ENCUENTRO_LUGAR, provincias: TIENDA.ENCUENTRO_PROVINCIAS },
     envios: leerEnvios_(),
     productos: armarCatalogo_(leerVariantes_()),
     actualizado: new Date().toISOString()
@@ -553,14 +558,15 @@ function crearPedido_(b) {
   const txt = (s, max) => String(s || '').trim().slice(0, max || 120);
   const env = {
     nombre: txt(e.nombre), telefono: txt(e.telefono, 40), dni: txt(e.dni, 20),
-    metodo: e.metodo === 'sucursal' ? 'sucursal' : 'domicilio',
+    metodo: ['sucursal', 'encuentro'].indexOf(e.metodo) >= 0 ? e.metodo : 'domicilio',
     direccion: txt(e.direccion, 200), ciudad: txt(e.ciudad), provincia: txt(e.provincia, 60), cp: txt(e.cp, 12)
   };
   if (!env.nombre || !env.telefono || !env.provincia || !env.ciudad || !env.cp) throw new Error('Completá nombre, teléfono, provincia, ciudad y código postal.');
   if (PROVINCIAS.indexOf(env.provincia) < 0) throw new Error('Elegí una provincia de la lista.');
   if (env.metodo === 'domicilio' && !env.direccion) throw new Error('Completá la dirección de entrega.');
+  if (env.metodo === 'encuentro' && TIENDA.ENCUENTRO_PROVINCIAS.indexOf(env.provincia) < 0) throw new Error('El punto de encuentro es solo para CABA y GBA.');
   const zona = leerEnvios_().find(z => z.provincias.indexOf(env.provincia) >= 0);
-  const costoEnvio = zona && zona[env.metodo] != null ? zona[env.metodo] : null; // null = a coordinar
+  const costoEnvio = env.metodo === 'encuentro' ? 0 : (zona && zona[env.metodo] != null ? zona[env.metodo] : null); // null = a coordinar
   const total = subtotal + (costoEnvio || 0);
 
   // 3) Guardar el pedido
@@ -569,7 +575,8 @@ function crearPedido_(b) {
   const fila = {
     'Pedido': id, 'Fecha': new Date(), 'Estado': 'Esperando pago', 'Email': u.email, 'Cliente': env.nombre,
     'Teléfono': env.telefono, 'DNI': env.dni,
-    'Envío': 'Correo Argentino a ' + env.metodo + (costoEnvio == null ? ' (a coordinar)' : ''),
+    'Envío': env.metodo === 'encuentro' ? `Punto de encuentro (${TIENDA.ENCUENTRO_DIA} ${TIENDA.ENCUENTRO_HORA})` : 'Correo Argentino a ' + env.metodo + (costoEnvio == null ? ' (a coordinar)' : ''),
+    'Código entrega': env.metodo === 'encuentro' ? nuevoCodigoEntrega_() : '',
     'Dirección': env.direccion, 'Ciudad': env.ciudad, 'Provincia': env.provincia, 'CP': env.cp,
     'Productos': resumen, 'Subtotal': subtotal, 'Costo envío': costoEnvio == null ? '' : costoEnvio, 'Total': total,
     'Pago MP': '', 'Estado MP': '', 'Seguimiento': '', 'Notas': notaDescuento ? `${notaDescuento}: -$${fmt_(descuento)}` : '', 'Items': JSON.stringify(lineas), 'Mail pago': ''
@@ -753,7 +760,8 @@ function admin_(b) {
         pedido: p['Pedido'], fecha: p['Fecha'], estado: p['Estado'], email: p['Email'], cliente: p['Cliente'],
         telefono: p['Teléfono'], dni: p['DNI'], envio: p['Envío'], direccion: p['Dirección'], ciudad: p['Ciudad'],
         provincia: p['Provincia'], cp: p['CP'], subtotal: p['Subtotal'], costoEnvio: p['Costo envío'], total: p['Total'],
-        pagoMP: p['Pago MP'], estadoMP: p['Estado MP'], seguimiento: p['Seguimiento'], notas: p['Notas'], items
+        pagoMP: p['Pago MP'], estadoMP: p['Estado MP'], seguimiento: p['Seguimiento'], notas: p['Notas'], items,
+        encuentro: !!p['Código entrega']
       };
     }) };
   }
@@ -777,6 +785,33 @@ function admin_(b) {
   }
 
   if (b.op === 'publicaciones') return { productos: listaPublicaciones_() };
+
+  // Punto de encuentro: Luz ingresa el código que le muestra la clienta
+  if (b.op === 'buscarCodigo' || b.op === 'confirmarEntrega') {
+    const cod = String(b.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (cod.length !== 6) throw new Error('El código tiene 6 letras y números.');
+    const p = leerPedidos_().find(x => String(x['Código entrega']).toUpperCase() === cod);
+    if (!p) throw new Error('No hay ningún pedido con ese código. Revisalo con la clienta.');
+    if (p['Estado'] === 'Entregado') throw new Error(`Ese pedido (${p['Pedido']}) ya fue entregado.`);
+    if (['Pagado', 'Preparando'].indexOf(p['Estado']) < 0) throw new Error(`El pedido ${p['Pedido']} no está pagado (estado: ${p['Estado']}). No lo entregues.`);
+    const resumen = { pedido: p['Pedido'], cliente: p['Cliente'], telefono: p['Teléfono'], total: p['Total'], estado: p['Estado'], items: itemsDe_(p) };
+    if (b.op === 'buscarCodigo') return { ok: true, pedido: resumen };
+    let datos;
+    conLock_(() => {
+      const f = buscarPedido_(p['Pedido']);
+      const cambios = { 'Estado': 'Entregado', 'Notas': [f.datos['Notas'], `Entregado en punto de encuentro el ${Utilities.formatDate(new Date(), TIENDA.ZONA_HORARIA, 'dd/MM/yyyy HH:mm')} (código validado)`].filter(Boolean).join(' · ') };
+      escribirCambios_(f.hoja, f.fila, cambios);
+      datos = Object.assign(f.datos, cambios);
+    });
+    try { mailEntregaConfirmada_(datos); } catch (e) { Logger.log('Mail entrega: ' + e); }
+    return { ok: true, pedido: resumen };
+  }
+  if (b.op === 'reenviarCodigo') {
+    const f = buscarPedido_(String(b.pedido || ''));
+    if (!f || !f.datos['Código entrega']) throw new Error('Ese pedido no es de punto de encuentro.');
+    mailCodigoEntrega_(f.datos);
+    return { ok: true };
+  }
   if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas', 'zipFotos', 'seleccion'].indexOf(b.op) >= 0) return adminFotos_(b);
 
   if (b.op === 'publicar') {
@@ -808,8 +843,12 @@ function mailPagoCliente_(d) {
     htmlBody: plantillaMail_(`¡Gracias, ${esc_(String(d['Cliente']).split(' ')[0])}!`,
       `<p>Tu pago fue aprobado. Ya estamos preparando tu pedido <b>${esc_(d['Pedido'])}</b>.</p>` +
       tablaItems_(items, d) +
-      `<p><b>Envío:</b> ${esc_(d['Envío'])}<br>${esc_([d['Dirección'], d['Ciudad'], d['Provincia'], d['CP']].filter(Boolean).join(', '))}</p>` +
-      `<p>Despachamos tus prendas dentro de los <b>7 días hábiles</b> de acreditado el pago. Cuando salga te mandamos el número de seguimiento de Correo Argentino.</p>` +
+      (d['Código entrega']
+        ? `<p><b>Entrega:</b> punto de encuentro, el <b>sábado ${proximoSabado_()}</b> a las ${TIENDA.ENCUENTRO_HORA} (${esc_(lugarEncuentro_())}).</p>
+           <p>Tu código de entrega, <b>único y personal</b>. Mostralo cuando retires:</p>
+           <p style="text-align:center;margin:18px 0"><span style="display:inline-block;padding:14px 26px;border-radius:14px;background:#FBEBED;color:#7A1F3D;font:700 30px/1 Arial,sans-serif;letter-spacing:6px">${esc_(d['Código entrega'])}</span></p>`
+        : `<p><b>Envío:</b> ${esc_(d['Envío'])}<br>${esc_([d['Dirección'], d['Ciudad'], d['Provincia'], d['CP']].filter(Boolean).join(', '))}</p>` +
+          `<p>Despachamos tus prendas dentro de los <b>7 días hábiles</b> de acreditado el pago. Cuando salga te mandamos el número de seguimiento de Correo Argentino.</p>`) +
       `<p>Si necesitás un cambio, tenés <b>5 días</b> desde que recibís el pedido.</p>`)
   });
 }
@@ -988,7 +1027,51 @@ function hojaPedidos_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let h = ss.getSheetByName(TIENDA.HOJA_PEDIDOS);
   if (!h) { instalarTienda(); h = ss.getSheetByName(TIENDA.HOJA_PEDIDOS); }
+  // Columnas nuevas (ej. "Código entrega") se agregan solas al final del encabezado
+  const enc = h.getRange(1, 1, 1, Math.max(1, h.getLastColumn())).getValues()[0];
+  if (enc.length < COLUMNAS_PEDIDOS.length || COLUMNAS_PEDIDOS.some((c, i) => enc[i] !== c && !(enc[i] === '' && i >= enc.length))) {
+    COLUMNAS_PEDIDOS.forEach((c, i) => { if (enc[i] !== c && (enc[i] === '' || enc[i] === undefined)) h.getRange(1, i + 1).setValue(c).setFontWeight('bold'); });
+  }
   return h;
+}
+
+/* ===================== PUNTO DE ENCUENTRO ===================== */
+
+// Código único y personal (sin letras que se confunden: 0/O, 1/I/L)
+function nuevoCodigoEntrega_() {
+  const abc = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const hex = Utilities.getUuid().replace(/-/g, '');
+  let c = '';
+  for (let i = 0; i < 6; i++) c += abc[parseInt(hex.substr(i * 2, 2), 16) % abc.length];
+  return c;
+}
+// Próximo sábado de entrega: si paga de lunes a jueves, ese sábado; si paga viernes a domingo, el siguiente
+function proximoSabado_(desde) {
+  const d = new Date(desde || new Date());
+  const dia = d.getDay(); // 0 domingo … 6 sábado
+  let suma = (6 - dia + 7) % 7;
+  if (dia === 5 || dia === 6 || dia === 0) suma += 7;
+  if (suma === 0) suma = 7;
+  d.setDate(d.getDate() + suma);
+  return Utilities.formatDate(d, TIENDA.ZONA_HORARIA, 'dd/MM');
+}
+const lugarEncuentro_ = () => TIENDA.ENCUENTRO_LUGAR || 'te escribimos para confirmarte el lugar exacto';
+function mailCodigoEntrega_(d) {
+  MailApp.sendEmail({
+    to: d['Email'], name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
+    subject: `${TIENDA.NOMBRE} · Tu código de entrega (pedido ${d['Pedido']})`,
+    htmlBody: plantillaMail_('Tu código de entrega', `<p>Elegiste retirar tu pedido <b>${esc_(d['Pedido'])}</b> en el <b>punto de encuentro</b>, los ${TIENDA.ENCUENTRO_DIA} a las ${TIENDA.ENCUENTRO_HORA} (${esc_(lugarEncuentro_())}).</p>
+      <p style="text-align:center;margin:22px 0"><span style="display:inline-block;padding:14px 26px;border-radius:14px;background:#FBEBED;color:#7A1F3D;font:700 30px/1 Arial,sans-serif;letter-spacing:6px">${esc_(d['Código entrega'])}</span></p>
+      <p>Mostralo cuando retires: es <b>único y personal</b>, no lo compartas con nadie. Con este código confirmamos que la entrega es tuya.</p>`)
+  });
+}
+function mailEntregaConfirmada_(d) {
+  MailApp.sendEmail({
+    to: d['Email'], name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
+    subject: `${TIENDA.NOMBRE} · Entrega confirmada (pedido ${d['Pedido']})`,
+    htmlBody: plantillaMail_('¡Entrega confirmada!', `<p>Confirmamos que retiraste tu pedido <b>${esc_(d['Pedido'])}</b>. ¡Gracias por elegir ${TIENDA.NOMBRE}! 💕</p>
+      <p>Si necesitás un cambio, tenés 5 días desde hoy.</p>`)
+  });
 }
 
 function leerPedidos_() {

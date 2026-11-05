@@ -128,7 +128,7 @@
     const opciones = st.estados.map(e => `<option ${e === p.estado ? 'selected' : ''}>${esc(e)}</option>`).join('');
     return `<details class="pedido" data-id="${esc(p.pedido)}">
       <summary>
-        <span><span class="pedido-id">${esc(p.pedido)}</span> <span class="estado ${esc(String(p.estado).replace(/\s+/g, '-'))}">${esc(p.estado)}</span></span>
+        <span><span class="pedido-id">${esc(p.pedido)}</span> <span class="estado ${esc(String(p.estado).replace(/\s+/g, '-'))}">${esc(p.estado)}</span>${p.encuentro ? ' <span class="estado encuentro">🤝 Encuentro</span>' : ''}</span>
         <span class="pedido-total">${fmt(p.total)}</span>
         <span class="pedido-quien">${esc(p.cliente)} · ${fecha.toLocaleDateString('es-AR')} ${fecha.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
         <span class="pedido-quien" style="text-align:right">${esc(p.provincia)}</span>
@@ -157,6 +157,8 @@
           <div class="fila ancha">
             <button class="boton principal" type="submit">Guardar cambios</button>
             <button class="boton secundario" type="button" data-copiar>Copiar datos de envío</button>
+            ${p.encuentro ? `<button class="boton secundario" type="button" data-reenviar="${esc(p.pedido)}">Reenviar código por mail</button>
+            <a class="boton secundario" target="_blank" rel="noopener" href="https://wa.me/${esc(waAr(p.telefono))}?text=${encodeURIComponent(`Hola ${String(p.cliente).split(' ')[0]}! Te escribo de Coquette por tu pedido ${p.pedido}. Te espero el sábado a las 12 en el punto de encuentro. Acordate de traer tu código de entrega (te llegó por mail).`)}">WhatsApp a la clienta</a>` : ''}
           </div>
           <small class="ancha">Al pasar el pedido a "Enviado" le llega un mail a la clienta con el número de seguimiento.</small>
         </form>
@@ -414,6 +416,45 @@
     if (v === 'publicaciones' && !st.pubs) cargarPublicaciones();
   }
 
+  // Teléfono argentino para wa.me: 54 9 + área + número, sin 0 ni 15
+  function waAr(t) {
+    let n = String(t || '').replace(/\D/g, '');
+    if (n.startsWith('54')) n = n.slice(2);
+    if (n.startsWith('9')) n = n.slice(1);
+    if (n.startsWith('0')) n = n.slice(1);
+    n = n.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
+    return '549' + n;
+  }
+
+  /* ---------- Código de entrega (punto de encuentro) ---------- */
+  $('#formCodigo').addEventListener('submit', async e => {
+    e.preventDefault();
+    const cod = $('#codigoEntrega').value.trim().toUpperCase(), out = $('#resultadoCodigo');
+    out.innerHTML = '<p>Buscando…</p>';
+    try {
+      const r = await post({ action: 'admin', op: 'buscarCodigo', idToken: st.token, codigo: cod });
+      if (r.error) throw new Error(r.error);
+      const p = r.pedido;
+      out.innerHTML = `<div class="codigo-ok">
+          <p>✅ <b>Código correcto.</b> Pedido <b>${esc(p.pedido)}</b> de <b>${esc(p.cliente)}</b> · ${fmt(p.total)} · ${esc(p.estado)}</p>
+          <ul>${(p.items || []).map(l => `<li>${l.cantidad}× ${esc(l.nombre)} <small>${esc(l.detalle)}</small></li>`).join('')}</ul>
+          <button class="boton principal" type="button" id="confirmarEntrega" data-codigo="${esc(cod)}">Entregué el pedido</button>
+        </div>`;
+    } catch (err) { out.innerHTML = `<p class="codigo-mal">❌ ${esc(err.message)}</p>`; }
+  });
+  $('#resultadoCodigo').addEventListener('click', async e => {
+    const b = e.target.closest('#confirmarEntrega'); if (!b) return;
+    b.disabled = true; b.textContent = 'Confirmando…';
+    try {
+      const r = await post({ action: 'admin', op: 'confirmarEntrega', idToken: st.token, codigo: b.dataset.codigo });
+      if (r.error) throw new Error(r.error);
+      $('#resultadoCodigo').innerHTML = `<p class="codigo-ok">🎉 Listo: pedido <b>${esc(r.pedido.pedido)}</b> entregado. Le mandamos el mail de confirmación a ${esc(r.pedido.cliente)}.</p>`;
+      $('#codigoEntrega').value = '';
+      const ped = st.pedidos.find(x => x.pedido === r.pedido.pedido); if (ped) ped.estado = 'Entregado';
+      pintar();
+    } catch (err) { tostada(err.message); b.disabled = false; b.textContent = 'Entregué el pedido'; }
+  });
+
   /* ---------- Eventos ---------- */
   $$('.pestanas [data-vista]').forEach(b => b.addEventListener('click', () => verVista(b.dataset.vista)));
   $('#filtrosPub').addEventListener('click', e => { const b = e.target.closest('[data-fp]'); if (b) { st.filtroPub = b.dataset.fp; pintarPublicaciones(); } });
@@ -429,6 +470,12 @@
   $('#btnSalir').addEventListener('click', salir);
   $('#lista').addEventListener('submit', e => { e.preventDefault(); guardarPedido(e.target); });
   $('#lista').addEventListener('click', async e => {
+    const re = e.target.closest('[data-reenviar]');
+    if (re) {
+      re.disabled = true;
+      const r = await post({ action: 'admin', op: 'reenviarCodigo', idToken: st.token, pedido: re.dataset.reenviar });
+      tostada(r.error || 'Le reenviamos el código por mail.'); re.disabled = false; return;
+    }
     if (!e.target.closest('[data-copiar]')) return;
     const id = e.target.closest('form').dataset.form;
     const p = st.pedidos.find(x => x.pedido === id);
@@ -439,6 +486,8 @@
   /* ---------- Datos de demostración ---------- */
   function demo(b) {
     if (b.op === 'publicar' || b.op === 'fotosRevisadas') return Promise.resolve({ ok: true });
+    if (b.op === 'buscarCodigo' || b.op === 'confirmarEntrega') return Promise.resolve(String(b.codigo).toUpperCase() === 'BNB95T' ? { ok: true, pedido: { pedido: 'CQ261105-DEMO', cliente: 'Martina López', total: 102000, estado: 'Pagado', items: [{ cantidad: 3, nombre: 'CONJUNTO CARIBE LISO', detalle: 'Unidad · Negro · 2' }] } } : { error: 'No hay ningún pedido con ese código. Revisalo con la clienta.' });
+    if (b.op === 'reenviarCodigo') return Promise.resolve({ ok: true });
     if (b.op === 'seleccion') return Promise.resolve({ ok: true, seleccion: b.sel });
     if (b.op === 'zipFotos') return Promise.resolve({ error: 'En la demostración no se descargan fotos.' });
     if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'] });

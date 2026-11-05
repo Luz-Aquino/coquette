@@ -138,3 +138,16 @@ button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; he
 .elegir.si { background: var(--bordo); border-color: #fff; }
 .foto.elegida { box-shadow: 0 0 0 3px var(--bordo); }
 .portada.nueva { right: auto; left: 6px; top: auto; bottom: 6px; }
+
+/* Código de entrega */
+.entrega-codigo { margin: 0 0 18px; padding: 16px; border-radius: 14px; background: #fff; border: 1.5px solid #F1D3DA; }
+.entrega-codigo h2 { margin: 0 0 4px; font: 500 20px var(--serif); }
+.entrega-codigo p { margin: 0 0 10px; color: var(--gris); font-size: 14px; }
+.entrega-fila { display: flex; gap: 8px; }
+.entrega-fila input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border-radius: 12px; border: var(--borde); font: 700 22px var(--sans); letter-spacing: 5px; text-transform: uppercase; }
+.entrega-fila .boton { min-height: 48px; }
+.codigo-ok { margin-top: 12px; padding: 12px; border-radius: 12px; background: #E3F1E6; color: #1F5130; font-size: 14px; }
+.codigo-ok p { color: inherit; margin: 0 0 6px; }
+.codigo-ok ul { margin: 0 0 10px; padding-left: 18px; }
+.codigo-mal { margin-top: 12px !important; padding: 12px; border-radius: 12px; background: #FDECEC; color: #9B1C1C !important; font-weight: 600; }
+.estado.encuentro { background: #FFF0DA; color: #8A4B00; }

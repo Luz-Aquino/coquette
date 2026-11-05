@@ -994,3 +994,9 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .cot-op input:checked + span { border-color: var(--bordo); box-shadow: 0 0 0 3px #FBEBED; background: #fff; }
 .cot-op input:focus-visible + span { outline: 2px solid var(--bordo); outline-offset: 2px; }
 .cotizar-nota { margin: 10px 0 0; font-size: 12px; color: var(--gris); }
+
+/* Punto de encuentro */
+.metodos.tres, .cotizar-opciones.tres { grid-template-columns: 1fr 1fr; }
+.metodos.tres .metodo-encuentro, .cotizar-opciones.tres .cot-encuentro { grid-column: 1 / -1; }
+.metodo[hidden], .cot-op[hidden] { display: none; }
+.cot-encuentro em { color: #2E7D4F; }

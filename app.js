@@ -540,7 +540,7 @@
     pintarCotizador(lineas);
     const env = lineas.length ? envioActual() : null;
     $('#filaEnvio').hidden = !env;
-    if (env) $('#tEnvio').textContent = env.costo == null ? 'A coordinar' : fmt(env.costo);
+    if (env) $('#tEnvio').textContent = env.costo == null ? 'A coordinar' : env.metodo === 'encuentro' ? 'Gratis (punto de encuentro)' : fmt(env.costo);
     $('#tTotal').textContent = fmt(sub - desc + (env && env.costo ? env.costo : 0));
     const btn = $('#btnSeguir');
     const minimo = Number(CFG.MINIMO_COMPRA) || 0;
@@ -582,6 +582,10 @@
     return ((st.cat && st.cat.envios) || []).find(z => z.provincias.indexOf(provincia) >= 0) || null;
   }
   // Cotizador del carrito: la clienta compara domicilio y sucursal antes de pagar
+  // Punto de encuentro (entrega en mano, gratis) solo para algunas provincias
+  const enc = () => (st.cat && st.cat.encuentro) || { dia: 'sábados', hora: '12:00 hs', lugar: '', provincias: ['CABA', 'Buenos Aires (GBA)'] };
+  const hayEncuentro = prov => enc().provincias.indexOf(prov) >= 0;
+  const textoEncuentro = () => { const e = enc(); return `${e.dia[0].toUpperCase() + e.dia.slice(1)} ${e.hora}${e.lugar ? ' · ' + e.lugar : ' · Almirante Brown (zona sur)'}`; };
   function pintarCotizador(lineas) {
     const caja = $('#cotizar');
     caja.hidden = !lineas.length || st.paso !== 'carrito';
@@ -595,6 +599,11 @@
     const txt = m => !sel.value ? 'Elegí la provincia' : (z && z[m] != null ? fmt(z[m]) : 'A coordinar');
     $('#cotDomicilio').textContent = txt('domicilio');
     $('#cotSucursal').textContent = txt('sucursal');
+    const conEnc = hayEncuentro(sel.value);
+    $('#cotEncuentro').hidden = !conEnc; $('#cotEncuentroTxt').textContent = textoEncuentro();
+    $('#cotOpciones').classList.toggle('tres', conEnc);
+    const r = caja.querySelector('input[name=cotMetodo][value=encuentro]');
+    if (!conEnc && r.checked) caja.querySelector('input[name=cotMetodo][value=domicilio]').checked = true;
   }
   function guardarCotizacion() {
     const datos = leer('coquet_datos', {});
@@ -610,6 +619,7 @@
     if (st.paso === 'carrito') {
       const prov = $('#cotProvincia').value; if (!prov) return null;
       const metodo = $('#cotizar input[name=cotMetodo]:checked').value, z = zonaDe(prov);
+      if (metodo === 'encuentro') return { metodo, costo: 0 };
       return { metodo, costo: z && z[metodo] != null ? z[metodo] : null };
     }
     const f = $('#formCompra');
@@ -617,6 +627,7 @@
     if (!prov) return null;
     const metodo = f.querySelector('input[name=metodo]:checked').value;
     const z = zonaDe(prov);
+    if (metodo === 'encuentro') return { metodo, costo: 0 };
     return { metodo, costo: z && z[metodo] != null ? z[metodo] : null };
   }
   function prepararCompra() {
@@ -642,13 +653,19 @@
     const txt = m => !f.provincia.value ? 'Elegí la provincia' : (z && z[m] != null ? fmt(z[m]) : 'Costo a coordinar');
     $('#precioDomicilio').textContent = txt('domicilio');
     $('#precioSucursal').textContent = txt('sucursal');
-    const suc = f.querySelector('input[name=metodo]:checked').value === 'sucursal';
+    const conEnc = hayEncuentro(f.provincia.value);
+    $('#metodoEncuentro').hidden = !conEnc; $('#textoEncuentro').textContent = textoEncuentro() + ' · Gratis';
+    $('#metodos').classList.toggle('tres', conEnc);
+    if (!conEnc && f.querySelector('input[name=metodo][value=encuentro]').checked) f.querySelector('input[name=metodo][value=domicilio]').checked = true;
+    const metodo = f.querySelector('input[name=metodo]:checked').value, suc = metodo === 'sucursal';
+    $('#lblDireccion').hidden = metodo === 'encuentro';
     $('#lblDireccion').firstChild.textContent = suc ? 'Sucursal de Correo Argentino que te queda cómoda (opcional)' : 'Calle, número, piso y depto';
     pintarCarrito();
   }
   function validarCompra() {
     const f = $('#formCompra');
-    const suc = f.querySelector('input[name=metodo]:checked').value === 'sucursal';
+    const metodo = f.querySelector('input[name=metodo]:checked').value;
+    const suc = metodo !== 'domicilio';
     const req = ['nombre', 'telefono', 'provincia', 'ciudad', 'cp'].concat(suc ? [] : ['direccion']);
     let primero = null;
     ['nombre', 'telefono', 'provincia', 'direccion', 'ciudad', 'cp'].forEach(k => {
@@ -657,7 +674,7 @@
       if (malo && !primero) primero = f[k];
     });
     if (primero) { mostrarError('Completá los datos marcados para poder enviarte el pedido.'); primero.focus(); return null; }
-    const datos = { metodo: suc ? 'sucursal' : 'domicilio' };
+    const datos = { metodo };
     ['nombre', 'telefono', 'dni', 'provincia', 'direccion', 'ciudad', 'cp'].forEach(k => { datos[k] = String(f[k].value).trim(); });
     guardar('coquet_datos', datos);
     return datos;
