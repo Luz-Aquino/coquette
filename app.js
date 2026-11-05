@@ -537,7 +537,8 @@
     $('#filaDescuento').hidden = !desc;
     if (desc) { $('#tDescuentoNom').textContent = `Descuento ${st.codigo.codigo}`; $('#tDescuento').textContent = '−' + fmt(desc); }
     pintarLook(lineas);
-    const env = st.paso === 'compra' ? envioActual() : null;
+    pintarCotizador(lineas);
+    const env = lineas.length ? envioActual() : null;
     $('#filaEnvio').hidden = !env;
     if (env) $('#tEnvio').textContent = env.costo == null ? 'A coordinar' : fmt(env.costo);
     $('#tTotal').textContent = fmt(sub - desc + (env && env.costo ? env.costo : 0));
@@ -580,7 +581,37 @@
   function zonaDe(provincia) {
     return ((st.cat && st.cat.envios) || []).find(z => z.provincias.indexOf(provincia) >= 0) || null;
   }
+  // Cotizador del carrito: la clienta compara domicilio y sucursal antes de pagar
+  function pintarCotizador(lineas) {
+    const caja = $('#cotizar');
+    caja.hidden = !lineas.length || st.paso !== 'carrito';
+    if (caja.hidden) return;
+    const sel = $('#cotProvincia');
+    if (sel.options.length <= 1) sel.insertAdjacentHTML('beforeend', ((st.cat && st.cat.provincias) || []).map(p => `<option>${esc(p)}</option>`).join(''));
+    const datos = leer('coquet_datos', {});
+    if (!sel.value && datos.provincia) sel.value = datos.provincia;
+    if (datos.metodo) { const r = caja.querySelector(`input[name=cotMetodo][value=${datos.metodo}]`); if (r) r.checked = true; }
+    const z = zonaDe(sel.value);
+    const txt = m => !sel.value ? 'Elegí la provincia' : (z && z[m] != null ? fmt(z[m]) : 'A coordinar');
+    $('#cotDomicilio').textContent = txt('domicilio');
+    $('#cotSucursal').textContent = txt('sucursal');
+  }
+  function guardarCotizacion() {
+    const datos = leer('coquet_datos', {});
+    datos.provincia = $('#cotProvincia').value;
+    datos.metodo = $('#cotizar input[name=cotMetodo]:checked').value;
+    guardar('coquet_datos', datos);
+    const f = $('#formCompra');
+    if (datos.provincia) f.provincia.value = datos.provincia;
+    const r = f.querySelector(`input[name=metodo][value=${datos.metodo}]`); if (r) r.checked = true;
+    pintarCarrito();
+  }
   function envioActual() {
+    if (st.paso === 'carrito') {
+      const prov = $('#cotProvincia').value; if (!prov) return null;
+      const metodo = $('#cotizar input[name=cotMetodo]:checked').value, z = zonaDe(prov);
+      return { metodo, costo: z && z[metodo] != null ? z[metodo] : null };
+    }
     const f = $('#formCompra');
     const prov = f.provincia.value;
     if (!prov) return null;
@@ -978,6 +1009,8 @@
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
+  $('#cotProvincia').addEventListener('change', guardarCotizacion);
+  $('#cotOpciones').addEventListener('change', guardarCotizacion);
   $('#misPedidos').addEventListener('click', e => {
     const b = e.target.closest('[data-retomar]'); if (!b || !st.misPedidos) return;
     const p = st.misPedidos[Number(b.dataset.retomar)];

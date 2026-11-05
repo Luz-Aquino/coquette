@@ -978,3 +978,19 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .galeria-cuenta { position: absolute; left: 12px; top: 12px; z-index: 2; padding: 4px 10px; border-radius: 12px; background: rgba(43,20,32,.55); color: #fff; font: 600 12px var(--sans); }
 .galeria-cuenta[hidden] { display: none; }
 @media (hover: none) { .galeria-flecha { width: 34px; height: 34px; font-size: 20px; background: rgba(255,255,255,.75); } }
+
+/* ---------- Cotizador de envío en el carrito ---------- */
+.cotizar { margin-top: 16px; padding: 14px; border-radius: 14px; background: #fff; border: 1px solid #F1D3DA; }
+.cotizar h3 { margin: 0 0 10px; font: 400 26px/1.1 var(--firma); color: var(--bordo); }
+.cotizar-prov { display: grid; gap: 5px; font-size: 14px; font-weight: 600; }
+.cotizar-prov select { height: 46px; padding: 0 12px; border-radius: 10px; border: var(--borde); background: #fff; font: inherit; font-weight: 400; font-size: 16px; }
+.cotizar-opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.cot-op { position: relative; cursor: pointer; }
+.cot-op input { position: absolute; opacity: 0; pointer-events: none; }
+.cot-op span { display: grid; gap: 2px; height: 100%; padding: 12px; border-radius: 12px; border: 1.5px solid var(--linea); background: var(--leche); transition: border-color .2s, box-shadow .2s; }
+.cot-op b { font-size: 14px; }
+.cot-op small { color: var(--gris); font-size: 12px; }
+.cot-op em { margin-top: 4px; font-style: normal; font-weight: 700; font-size: 16px; color: var(--bordo); }
+.cot-op input:checked + span { border-color: var(--bordo); box-shadow: 0 0 0 3px #FBEBED; background: #fff; }
+.cot-op input:focus-visible + span { outline: 2px solid var(--bordo); outline-offset: 2px; }
+.cotizar-nota { margin: 10px 0 0; font-size: 12px; color: var(--gris); }
