@@ -24,7 +24,10 @@ const TIENDA = {
   ENCUENTRO_DIA: 'sábados', ENCUENTRO_HORA: '12:00 hs (mediodía)',
   ENCUENTRO_LUGAR: 'Estación Adrogué',
   ENCUENTRO_MAPA: 'https://www.google.com/maps/search/?api=1&query=Estaci%C3%B3n+Adrogu%C3%A9%2C+B1846+Adrogu%C3%A9%2C+Buenos+Aires',
-  ENCUENTRO_PROVINCIAS: ['CABA', 'Buenos Aires (GBA)'],
+  ENCUENTRO_PROVINCIAS: ['Buenos Aires (GBA)'],
+  // Solo para la zona cercana a Adrogué (códigos postales): Banfield, Lomas, Temperley/Turdera, Llavallol, L. Guillón,
+  // Monte Grande, Adrogué/J. Mármol, R. Calzada, Claypole, Burzaco/M. Rivadavia, Longchamps, Glew
+  ENCUENTRO_CP: ['1828', '1832', '1834', '1836', '1838', '1842', '1846', '1847', '1849', '1852', '1854', '1856'],
   HOJA_FOTOS: 'Fotos',              // fotos propias de Luz por producto (reemplazan a las de Armony)
   CARPETA_FOTOS: 'Coquette – Fotos', // carpeta de Google Drive donde se guardan // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
   CONTACTO: 'hola.novafamilymarket@gmail.com', // las clientas responden los mails a esta dirección
@@ -498,7 +501,7 @@ function catalogo_() {
     tienda: TIENDA.NOMBRE,
     cuotas: TIENDA.CUOTAS_MAX,
     provincias: PROVINCIAS,
-    encuentro: { dia: TIENDA.ENCUENTRO_DIA, hora: TIENDA.ENCUENTRO_HORA, lugar: TIENDA.ENCUENTRO_LUGAR, provincias: TIENDA.ENCUENTRO_PROVINCIAS },
+    encuentro: { dia: TIENDA.ENCUENTRO_DIA, hora: TIENDA.ENCUENTRO_HORA, lugar: TIENDA.ENCUENTRO_LUGAR, provincias: TIENDA.ENCUENTRO_PROVINCIAS, cps: TIENDA.ENCUENTRO_CP },
     envios: leerEnvios_(),
     productos: armarCatalogo_(leerVariantes_()),
     actualizado: new Date().toISOString()
@@ -565,7 +568,7 @@ function crearPedido_(b) {
   if (!env.nombre || !env.telefono || !env.provincia || !env.ciudad || !env.cp) throw new Error('Completá nombre, teléfono, provincia, ciudad y código postal.');
   if (PROVINCIAS.indexOf(env.provincia) < 0) throw new Error('Elegí una provincia de la lista.');
   if (env.metodo === 'domicilio' && !env.direccion) throw new Error('Completá la dirección de entrega.');
-  if (env.metodo === 'encuentro' && TIENDA.ENCUENTRO_PROVINCIAS.indexOf(env.provincia) < 0) throw new Error('El punto de encuentro es solo para CABA y GBA.');
+  if (env.metodo === 'encuentro' && (TIENDA.ENCUENTRO_PROVINCIAS.indexOf(env.provincia) < 0 || !cpCercano_(env.cp))) throw new Error('El punto de encuentro es solo para la zona cercana a Adrogué. Elegí envío a domicilio o a sucursal.');
   const zona = leerEnvios_().find(z => z.provincias.indexOf(env.provincia) >= 0);
   const costoEnvio = env.metodo === 'encuentro' ? 0 : (zona && zona[env.metodo] != null ? zona[env.metodo] : null); // null = a coordinar
   const total = subtotal + (costoEnvio || 0);
@@ -1037,6 +1040,10 @@ function hojaPedidos_() {
 }
 
 /* ===================== PUNTO DE ENCUENTRO ===================== */
+
+// "B1846ABC", "1846" → "1846"
+const cpNumero_ = cp => (String(cp || '').match(/\d{4}/) || [''])[0];
+const cpCercano_ = cp => TIENDA.ENCUENTRO_CP.indexOf(cpNumero_(cp)) >= 0;
 
 // Código único y personal (sin letras que se confunden: 0/O, 1/I/L)
 function nuevoCodigoEntrega_() {

@@ -583,8 +583,10 @@
   }
   // Cotizador del carrito: la clienta compara domicilio y sucursal antes de pagar
   // Punto de encuentro (entrega en mano, gratis) solo para algunas provincias
-  const enc = () => (st.cat && st.cat.encuentro) || { dia: 'sábados', hora: '12:00 hs (mediodía)', lugar: 'Estación Adrogué', provincias: ['CABA', 'Buenos Aires (GBA)'] };
-  const hayEncuentro = prov => enc().provincias.indexOf(prov) >= 0;
+  const enc = () => (st.cat && st.cat.encuentro) || { dia: 'sábados', hora: '12:00 hs (mediodía)', lugar: 'Estación Adrogué', provincias: ['Buenos Aires (GBA)'], cps: ['1828', '1832', '1834', '1836', '1838', '1842', '1846', '1847', '1849', '1852', '1854', '1856'] };
+  const cpNum = cp => (String(cp || '').match(/\d{4}/) || [''])[0];
+  // Solo zona cercana a Adrogué: provincia + código postal
+  const hayEncuentro = (prov, cp) => enc().provincias.indexOf(prov) >= 0 && (enc().cps || []).indexOf(cpNum(cp)) >= 0;
   const textoEncuentro = () => { const e = enc(); return `${e.dia[0].toUpperCase() + e.dia.slice(1)} ${String(e.hora).replace(' (mediodía)', '')} · ${e.lugar || 'zona sur'}`; };
   function pintarCotizador(lineas) {
     const caja = $('#cotizar');
@@ -594,12 +596,13 @@
     if (sel.options.length <= 1) sel.insertAdjacentHTML('beforeend', ((st.cat && st.cat.provincias) || []).map(p => `<option>${esc(p)}</option>`).join(''));
     const datos = leer('coquet_datos', {});
     if (!sel.value && datos.provincia) sel.value = datos.provincia;
+    if (!$('#cotCp').value && datos.cp) $('#cotCp').value = datos.cp;
     if (datos.metodo) { const r = caja.querySelector(`input[name=cotMetodo][value=${datos.metodo}]`); if (r) r.checked = true; }
     const z = zonaDe(sel.value);
     const txt = m => !sel.value ? 'Elegí la provincia' : (z && z[m] != null ? fmt(z[m]) : 'A coordinar');
     $('#cotDomicilio').textContent = txt('domicilio');
     $('#cotSucursal').textContent = txt('sucursal');
-    const conEnc = hayEncuentro(sel.value);
+    const conEnc = hayEncuentro(sel.value, $('#cotCp').value);
     $('#cotEncuentro').hidden = !conEnc; $('#cotEncuentroTxt').textContent = textoEncuentro();
     $('#cotOpciones').classList.toggle('tres', conEnc);
     const r = caja.querySelector('input[name=cotMetodo][value=encuentro]');
@@ -608,10 +611,12 @@
   function guardarCotizacion() {
     const datos = leer('coquet_datos', {});
     datos.provincia = $('#cotProvincia').value;
+    if (cpNum($('#cotCp').value)) datos.cp = $('#cotCp').value.trim();
     datos.metodo = $('#cotizar input[name=cotMetodo]:checked').value;
     guardar('coquet_datos', datos);
     const f = $('#formCompra');
     if (datos.provincia) f.provincia.value = datos.provincia;
+    if (datos.cp) f.cp.value = datos.cp;
     const r = f.querySelector(`input[name=metodo][value=${datos.metodo}]`); if (r) r.checked = true;
     pintarCarrito();
   }
@@ -653,7 +658,7 @@
     const txt = m => !f.provincia.value ? 'Elegí la provincia' : (z && z[m] != null ? fmt(z[m]) : 'Costo a coordinar');
     $('#precioDomicilio').textContent = txt('domicilio');
     $('#precioSucursal').textContent = txt('sucursal');
-    const conEnc = hayEncuentro(f.provincia.value);
+    const conEnc = hayEncuentro(f.provincia.value, f.cp.value);
     $('#metodoEncuentro').hidden = !conEnc; $('#textoEncuentro').textContent = textoEncuentro() + ' · Gratis';
     $('#metodos').classList.toggle('tres', conEnc);
     if (!conEnc && f.querySelector('input[name=metodo][value=encuentro]').checked) f.querySelector('input[name=metodo][value=domicilio]').checked = true;
@@ -1027,6 +1032,7 @@
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
   $('#cotProvincia').addEventListener('change', guardarCotizacion);
+  $('#cotCp').addEventListener('input', () => { if (cpNum($('#cotCp').value) || !$('#cotCp').value) guardarCotizacion(); });
   $('#cotOpciones').addEventListener('change', guardarCotizacion);
   $('#misPedidos').addEventListener('click', e => {
     const b = e.target.closest('[data-retomar]'); if (!b || !st.misPedidos) return;
@@ -1106,7 +1112,7 @@
   $('#btnSeguir').addEventListener('click', () => { if (st.paso === 'carrito') irPaso('compra'); else pagar(); });
   $('#volverCarrito').addEventListener('click', () => irPaso('carrito'));
   $('#formCompra').addEventListener('change', e => { if (e.target.name === 'provincia' || e.target.name === 'metodo') actualizarEnvio(); });
-  $('#formCompra').addEventListener('input', e => e.target.removeAttribute('aria-invalid'));
+  $('#formCompra').addEventListener('input', e => { e.target.removeAttribute('aria-invalid'); if (e.target.name === 'cp') actualizarEnvio(); });
   $('#formCompra').addEventListener('submit', e => { e.preventDefault(); pagar(); });
   $('#pasoCompra').addEventListener('click', e => { if (e.target.id === 'cambiarCuenta') cerrarSesion(); });
 

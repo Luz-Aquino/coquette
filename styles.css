@@ -1000,3 +1000,7 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .metodos.tres .metodo-encuentro, .cotizar-opciones.tres .cot-encuentro { grid-column: 1 / -1; }
 .metodo[hidden], .cot-op[hidden] { display: none; }
 .cot-encuentro em { color: #2E7D4F; }
+
+.cotizar-datos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.cotizar-cp input { height: 46px; padding: 0 12px; border-radius: 10px; border: var(--borde); background: #fff; font: inherit; font-weight: 400; font-size: 16px; min-width: 0; }
+@media (max-width: 360px) { .cotizar-datos { grid-template-columns: 1fr; } }
