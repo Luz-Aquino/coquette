@@ -86,3 +86,25 @@
 }
 #buscarPub { height: 44px; padding: 0 16px; border-radius: 22px; border: var(--borde); background: #fff; font-size: 16px; }
 .entrando { margin: 12vh 0; text-align: center; font: italic 400 22px var(--serif); color: var(--bordo); }
+
+/* ---------- Fotos propias ---------- */
+.fotos-dlg .modal-contenido { width: min(820px, 100%); max-height: 90dvh; overflow: auto; }
+.fotos-sub { margin: 2px 0 12px; color: var(--gris); font-size: 14px; }
+.fotos-dlg section { margin-top: 18px; }
+.fotos-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.fotos-cabeza h3 { margin: 0; font: 500 19px var(--serif); }
+.fotos-cabeza a { color: var(--bordo); font-size: 14px; }
+.fotos-nota { margin: 6px 0 10px; color: var(--gris); font-size: 13px; }
+.fotos-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin: 8px 0; }
+.fotos-grilla.chica { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+.foto { position: relative; display: block; border-radius: 10px; overflow: hidden; background: var(--rosa); aspect-ratio: 3 / 4; }
+.foto img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.foto .portada { position: absolute; left: 6px; top: 6px; padding: 2px 8px; border-radius: 10px; background: var(--bordo); color: #fff; font-size: 11px; font-weight: 600; }
+.foto-acciones { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; padding: 6px; background: linear-gradient(transparent, rgba(0,0,0,.45)); }
+.foto-acciones button { width: 30px; height: 30px; border-radius: 50%; border: 0; background: rgba(255,255,255,.92); color: var(--bordo); font-size: 16px; cursor: pointer; }
+.foto-acciones button:disabled { opacity: .35; cursor: default; }
+.fotos-subir { display: inline-flex; align-items: center; min-height: 44px; cursor: pointer; margin-top: 4px; }
+.fotos-progreso { font-size: 14px; color: var(--bordo); font-weight: 600; }
+.fotos-cambio { padding: 12px; border-radius: 12px; background: #FFF6E0; border: 1px solid #F0D58C; color: #6B4E0F; font-size: 14px; }
+.fotos-cambio .boton { margin-top: 8px; min-height: 40px; }
+.fotos-aviso { background: #EEF4FF; border-color: #BFD3F5; color: #24426E; }

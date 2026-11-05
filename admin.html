@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611051242">
-  <link rel="stylesheet" href="admin.css?v=202611051242">
+  <link rel="stylesheet" href="styles.css?v=202611051258">
+  <link rel="stylesheet" href="admin.css?v=202611051258">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -63,10 +63,30 @@
     </section>
   </main>
 
+  <dialog class="modal fotos-dlg" id="dlgFotos" aria-labelledby="tituloFotos">
+    <div class="modal-contenido">
+      <button class="cerrar" data-cerrar aria-label="Cerrar">×</button>
+      <h2 id="tituloFotos">Fotos</h2>
+      <p class="fotos-sub" id="fotosSub"></p>
+      <div class="fotos-cambio" id="fotosCambio" hidden></div>
+      <section>
+        <div class="fotos-cabeza"><h3>Mis fotos</h3><span class="fotos-nota">La primera es la portada. Si no subís ninguna, se ven las de Armony.</span></div>
+        <div class="fotos-grilla" id="fotosMias"></div>
+        <label class="boton principal fotos-subir"><input type="file" id="fotosInput" accept="image/*" multiple hidden>＋ Subir fotos</label>
+        <p class="fotos-progreso" id="fotosProgreso" hidden></p>
+      </section>
+      <section>
+        <div class="fotos-cabeza"><h3>Fotos originales de Armony</h3><a id="fotosLink" target="_blank" rel="noopener">Ver publicación ↗</a></div>
+        <p class="fotos-nota">Tocá una foto para abrirla en grande y guardarla (mantené apretado o clic derecho → Guardar imagen) para usarla en Gemini.</p>
+        <div class="fotos-grilla" id="fotosArmony"></div>
+      </section>
+    </div>
+  </dialog>
+
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611051242"></script>
+  <script src="config.js?v=202611051258"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611051242"></script>
+  <script src="admin.js?v=202611051258"></script>
 </body>
 </html>

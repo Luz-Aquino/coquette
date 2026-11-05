@@ -208,8 +208,8 @@
   function pintarPublicaciones() {
     if (!st.pubs) return;
     const ps = st.pubs;
-    const grupos = { Pendiente: p => p.estado === 'Pendiente', avisos: p => p.avisos.length > 0, Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
-    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Con avisos', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
+    const grupos = { Pendiente: p => p.estado === 'Pendiente', avisos: p => p.avisos.length > 0, cambiadas: p => p.fotosCambiaron, mias: p => p.misFotos > 0, sinMias: p => !p.misFotos && p.estado === 'Publicado', Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
+    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Con avisos', cambiadas: '📸 Fotos cambiadas', mias: 'Con mis fotos', sinMias: 'Sin fotos propias', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
     $('#filtrosPub').innerHTML = Object.keys(grupos).map(k => `<button class="chip" data-fp="${k}" aria-pressed="${st.filtroPub === k}">${nombres[k]}<span>${ps.filter(grupos[k]).length}</span></button>`).join('');
     const q = st.qPub.toLowerCase().trim();
     const lista = ps.filter(grupos[st.filtroPub]).filter(p => !q || p.nombre.toLowerCase().includes(q));
@@ -225,7 +225,8 @@
     const etiqueta = { Pendiente: 'Para revisar', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado;
     const botones = [
       p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar en la tienda</button>` : '',
-      p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar de la tienda' : 'No publicar'}</button>` : ''
+      p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar de la tienda' : 'No publicar'}</button>` : '',
+      `<button class="boton secundario" data-fotos="${esc(p.id)}">📷 Fotos${p.misFotos ? ` (${p.misFotos} mías)` : ''}</button>`
     ].join('');
     return `<article class="pub ${esc(p.estado)}">
         <img class="pub-foto" src="${esc(p.imagen)}" alt="" loading="lazy" referrerpolicy="no-referrer">
@@ -233,6 +234,7 @@
           <div class="pub-cabeza"><h3>${esc(p.nombre)}</h3><span class="estado pub-${esc(p.estado)}">${esc(etiqueta)}</span></div>
           <p class="pub-meta">${esc(p.categoria)} · ${p.conStock} de ${p.variantes} variantes con stock${p.detectado ? ' · llegó el ' + new Date(p.detectado).toLocaleDateString('es-AR') : ''}</p>
           <ul class="pub-precios">${precios || '<li>Sin precios válidos todavía</li>'}</ul>
+          ${p.fotosCambiaron ? '<div class="pub-aviso fotos-aviso">📸 <b>Armony cambió las fotos originales.</b> Revisalas en "Fotos" por si querés generar nuevas.</div>' : ''}
           ${avisos}
           <p class="pub-links"><a href="${esc(p.link)}" target="_blank" rel="noopener">Ver publicación original en Armony ↗</a>${p.estado === 'Publicado' ? ` · <a href="${TIENDA_URL}#p-${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Ver en mi tienda ↗</a>` : ''}</p>
           <div class="pub-botones">${botones}</div>
@@ -252,6 +254,93 @@
       pintarPublicaciones();
     } catch (e) { tostada(e.message); btn.disabled = false; }
   }
+  /* ---------- Fotos propias ---------- */
+  const fs = { pid: null, mias: [] };
+  const dlgF = $('#dlgFotos');
+  dlgF.addEventListener('click', e => { if (e.target === dlgF || e.target.closest('[data-cerrar]')) dlgF.close(); });
+  dlgF.addEventListener('close', () => { if (fs.cambiado) cargarPublicaciones(true); fs.cambiado = false; });
+  async function abrirFotos(pid) {
+    fs.pid = pid; fs.mias = [];
+    $('#fotosMias').innerHTML = '<p class="fotos-nota">Cargando…</p>'; $('#fotosArmony').innerHTML = ''; $('#fotosCambio').hidden = true;
+    const p = (st.pubs || []).find(x => x.id === pid);
+    $('#tituloFotos').textContent = p ? p.nombre : 'Fotos';
+    $('#fotosSub').textContent = '';
+    dlgF.showModal();
+    try {
+      const r = await post({ action: 'admin', op: 'fotos', idToken: st.token, pid });
+      if (r.error) throw new Error(r.error);
+      fs.mias = r.mias; $('#fotosLink').href = r.link;
+      $('#fotosSub').textContent = r.mias.length ? `${r.mias.length} foto(s) tuyas · la tienda muestra estas` : 'Todavía sin fotos tuyas · la tienda muestra las de Armony';
+      $('#fotosArmony').innerHTML = r.armony.map(u => `<a class="foto" href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>`).join('');
+      if (r.cambio) {
+        const nuevas = r.armony.filter(u => r.armonyAntes.indexOf(u) < 0);
+        $('#fotosCambio').hidden = false;
+        $('#fotosCambio').innerHTML = `<b>📸 Armony cambió las fotos el ${new Date(r.cambio).toLocaleDateString('es-AR')}.</b> ${nuevas.length ? 'Fotos nuevas:' : 'Quitaron fotos.'}
+          <div class="fotos-grilla chica">${nuevas.map(u => `<a class="foto" href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer"></a>`).join('')}</div>
+          <button class="boton secundario" id="fotosRevisadas">Ya lo revisé</button>`;
+      }
+      pintarMias();
+    } catch (e) { $('#fotosMias').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+  }
+  function pintarMias() {
+    $('#fotosMias').innerHTML = fs.mias.length ? fs.mias.map((f, i) => `<div class="foto mia" data-i="${i}">
+        <img src="${esc(f.url)}" alt="" loading="lazy">${i === 0 ? '<span class="portada">Portada</span>' : ''}
+        <div class="foto-acciones">
+          <button type="button" data-mover="-1" aria-label="Mover a la izquierda" ${i === 0 ? 'disabled' : ''}>‹</button>
+          <button type="button" data-quitar aria-label="Quitar foto">✕</button>
+          <button type="button" data-mover="1" aria-label="Mover a la derecha" ${i === fs.mias.length - 1 ? 'disabled' : ''}>›</button>
+        </div></div>`).join('') : '<p class="fotos-nota">Subí tus fotos generadas con Gemini. Se achican solas para que la tienda cargue rápido.</p>';
+  }
+  async function guardarOrden(lista) {
+    try {
+      const r = await post({ action: 'admin', op: 'ordenarFotos', idToken: st.token, pid: fs.pid, ids: lista.map(f => f.id) });
+      if (r.error) throw new Error(r.error);
+      fs.mias = r.mias; fs.cambiado = true; pintarMias();
+    } catch (e) { tostada(e.message); }
+  }
+  // Achica la foto a 1600 px como máximo y la pasa a JPEG
+  function achicar(file) {
+    return new Promise((ok, mal) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+        const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.86));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('No pude leer ' + file.name)); };
+      img.src = url;
+    });
+  }
+  $('#fotosInput').addEventListener('change', async e => {
+    const archivos = [...e.target.files]; e.target.value = '';
+    const prog = $('#fotosProgreso'); prog.hidden = false;
+    for (let i = 0; i < archivos.length; i++) {
+      prog.textContent = `Subiendo ${i + 1} de ${archivos.length}…`;
+      try {
+        const datos = await achicar(archivos[i]);
+        const r = await post({ action: 'admin', op: 'subirFoto', idToken: st.token, pid: fs.pid, datos });
+        if (r.error) throw new Error(r.error);
+        fs.mias = r.mias; fs.cambiado = true; pintarMias();
+      } catch (err) { tostada(err.message); }
+    }
+    prog.textContent = 'Listo ✔'; setTimeout(() => { prog.hidden = true; }, 2000);
+    $('#fotosSub').textContent = `${fs.mias.length} foto(s) tuyas · la tienda muestra estas`;
+  });
+  $('#fotosMias').addEventListener('click', e => {
+    const caja = e.target.closest('.foto.mia'); if (!caja) return;
+    const i = Number(caja.dataset.i), lista = fs.mias.slice();
+    if (e.target.closest('[data-quitar]')) { lista.splice(i, 1); guardarOrden(lista); }
+    const mv = e.target.closest('[data-mover]');
+    if (mv) { const j = i + Number(mv.dataset.mover); [lista[i], lista[j]] = [lista[j], lista[i]]; guardarOrden(lista); }
+  });
+  $('#fotosCambio').addEventListener('click', async e => {
+    if (!e.target.closest('#fotosRevisadas')) return;
+    const r = await post({ action: 'admin', op: 'fotosRevisadas', idToken: st.token, pid: fs.pid });
+    if (r.error) return tostada(r.error);
+    $('#fotosCambio').hidden = true; fs.cambiado = true; tostada('Listo, marcado como revisado.');
+  });
+
   function verVista(v) {
     $$('.pestanas [data-vista]').forEach(b => b.setAttribute('aria-pressed', b.dataset.vista === v));
     $('#vistaPedidos').hidden = v !== 'pedidos';
@@ -264,7 +353,10 @@
   $('#filtrosPub').addEventListener('click', e => { const b = e.target.closest('[data-fp]'); if (b) { st.filtroPub = b.dataset.fp; pintarPublicaciones(); } });
   $('#buscarPub').addEventListener('input', e => { st.qPub = e.target.value; pintarPublicaciones(); });
   $('#btnRecargarPub').addEventListener('click', () => cargarPublicaciones());
-  $('#listaPub').addEventListener('click', e => { const b = e.target.closest('[data-pub]'); if (b) cambiarPublicacion(b); });
+  $('#listaPub').addEventListener('click', e => {
+    const f = e.target.closest('[data-fotos]'); if (f) { abrirFotos(f.dataset.fotos); return; }
+    const b = e.target.closest('[data-pub]'); if (b) cambiarPublicacion(b);
+  });
   $('#filtros').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { st.filtro = b.dataset.f; pintar(); } });
   $('#buscar').addEventListener('input', e => { st.q = e.target.value; pintar(); });
   $('#btnRecargar').addEventListener('click', cargar);
@@ -280,7 +372,10 @@
 
   /* ---------- Datos de demostración ---------- */
   function demo(b) {
-    if (b.op === 'publicar') return Promise.resolve({ ok: true });
+    if (b.op === 'publicar' || b.op === 'fotosRevisadas') return Promise.resolve({ ok: true });
+    if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'] });
+    if (b.op === 'subirFoto') { demo.mias = (demo.mias || []).concat([{ id: 'd' + Date.now(), url: b.datos }]); return Promise.resolve({ ok: true, mias: demo.mias }); }
+    if (b.op === 'ordenarFotos') { demo.mias = b.ids.map(id => (demo.mias || []).find(x => x.id === id)).filter(Boolean); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'publicaciones') {
       const img = 'https://armonyfabricantes.com.ar/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-09-at-15.04.43-2-600x800.jpeg';
       return Promise.resolve({ productos: [

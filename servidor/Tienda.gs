@@ -19,7 +19,9 @@ const TIENDA = {
   CACHE_MIN: 10,           // minutos que se guarda el catálogo en memoria
   ZONA_HORARIA: 'America/Argentina/Buenos_Aires',
   HOJA_CARRITOS: 'Carritos',
-  HOJA_PUBLICACION: 'Publicación', // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
+  HOJA_PUBLICACION: 'Publicación',
+  HOJA_FOTOS: 'Fotos',              // fotos propias de Luz por producto (reemplazan a las de Armony)
+  CARPETA_FOTOS: 'Coquette – Fotos', // carpeta de Google Drive donde se guardan // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
   CONTACTO: 'hola.novafamilymarket@gmail.com', // las clientas responden los mails a esta dirección
   DESCUENTO_CODIGO: 'HOLA10',   // código de primera compra (vacío = sin descuento)
   DESCUENTO_PORC: 10,           // % de descuento sobre los productos
@@ -27,6 +29,7 @@ const TIENDA = {
 };
 
 const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido'];
+const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado'];
 const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
 const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 
@@ -183,6 +186,14 @@ function armarCatalogo_(vars) {
     });
   });
   const estados = estadosPublicacion_();
+  const mias = misFotosTodas_();
+  orden.forEach(id => {
+    const f = mias[id];
+    if (f && f.fotos.length) {
+      prods[id].imagenes = f.fotos.map(x => x.url);
+      prods[id].variantes.forEach(v => { v.imagen = ''; }); // las fotos por color de Armony no aplican
+    }
+  });
   return orden.map(id => prods[id]).filter(p => p.variantes.some(v => v.stock) && (!estados || estados[p.id] === 'Publicado'));
 }
 
@@ -233,7 +244,149 @@ function registrarPublicaciones_(filas) {
     });
     if (datos.length) h.getRange(2, 1, datos.length, COLUMNAS_PUBLICACION.length).setValues(datos);
   });
+  try { revisarCambiosFotos_(filas); } catch (e) { Logger.log('Fotos: ' + e); }
   limpiarCacheCatalogo();
+}
+
+/* ===================== FOTOS PROPIAS ===================== */
+
+function hojaFotos_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let h = ss.getSheetByName(TIENDA.HOJA_FOTOS);
+  if (!h) {
+    h = ss.insertSheet(TIENDA.HOJA_FOTOS);
+    h.getRange(1, 1, 1, COLUMNAS_FOTOS.length).setValues([COLUMNAS_FOTOS]).setFontWeight('bold');
+    h.setFrozenRows(1);
+  }
+  return h;
+}
+const leerJson_ = (s, d) => { try { return JSON.parse(s || ''); } catch (_) { return d; } };
+// { pid: { fila, fotos:[{id,url}], armony:[urls], cambio:'' | fecha ISO } }
+function misFotosTodas_() {
+  const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_FOTOS);
+  const m = {};
+  if (!h || h.getLastRow() < 2) return m;
+  h.getRange(2, 1, h.getLastRow() - 1, COLUMNAS_FOTOS.length).getValues().forEach((f, i) => {
+    if (f[0] === '') return;
+    m[String(f[0])] = { fila: i + 2, fotos: leerJson_(f[2], []), armony: leerJson_(f[3], []),
+      cambio: f[4] instanceof Date ? f[4].toISOString() : String(f[4] || '') };
+  });
+  return m;
+}
+// Fotos actuales de Armony de un producto (toda la galería, sin repetir)
+function fotosArmony_(pid, vars) {
+  const fotos = [];
+  (vars || leerVariantes_()).filter(v => v.pid === String(pid)).forEach(v => {
+    v.imagenes.split(',').map(x => x.trim()).concat(v.imagen ? [v.imagen] : []).forEach(u => { if (u && fotos.indexOf(u) < 0) fotos.push(u); });
+  });
+  return fotos;
+}
+const mismasFotos_ = (a, b) => a.slice().sort().join('|') === b.slice().sort().join('|');
+
+function carpetaFotos_() {
+  const id = prop_('FOTOS_CARPETA');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (_) {} }
+  const c = DriveApp.createFolder(TIENDA.CARPETA_FOTOS);
+  PropertiesService.getScriptProperties().setProperty('FOTOS_CARPETA', c.getId());
+  return c;
+}
+// Ejecutar UNA vez desde el editor para dar permiso a Google Drive y crear la carpeta
+function instalarFotos() {
+  const c = carpetaFotos_();
+  hojaFotos_();
+  Logger.log('Carpeta de fotos lista ✔ ' + c.getUrl());
+}
+
+function guardarMisFotos_(pid, nombre, fotos, armony) {
+  const h = hojaFotos_();
+  const m = misFotosTodas_()[pid];
+  const fila = [pid, nombre, JSON.stringify(fotos), JSON.stringify(armony), '', new Date()];
+  if (m) {
+    // mantiene la marca de "cambió" salvo que se pase armony nuevo (= revisado)
+    if (armony === null) { fila[3] = JSON.stringify(m.armony); fila[4] = m.cambio ? new Date(m.cambio) : ''; }
+    h.getRange(m.fila, 1, 1, fila.length).setValues([fila]);
+  } else {
+    if (armony === null) fila[3] = '[]';
+    h.appendRow(fila);
+  }
+  limpiarCacheCatalogo();
+}
+
+function adminFotos_(b) {
+  const pid = String(b.pid || '');
+  if (!pid) throw new Error('Falta el producto.');
+  const vars = leerVariantes_();
+  const v0 = vars.find(v => v.pid === pid);
+  if (!v0) throw new Error('No encontré ese producto.');
+  const actual = fotosArmony_(pid, vars);
+  const m = misFotosTodas_()[pid] || { fotos: [], armony: [], cambio: '' };
+
+  if (b.op === 'fotos') {
+    return { pid, nombre: v0.producto, link: v0.link, armony: actual, mias: m.fotos,
+      cambio: m.cambio, armonyAntes: m.cambio ? m.armony : [] };
+  }
+  if (b.op === 'subirFoto') {
+    const datos = String(b.datos || '').replace(/^data:image\/\w+;base64,/, '');
+    if (!datos || datos.length > 8e6) throw new Error('La foto no es válida o es muy pesada.');
+    if ((m.fotos || []).length >= 15) throw new Error('Máximo 15 fotos por producto.');
+    const blob = Utilities.newBlob(Utilities.base64Decode(datos), 'image/jpeg',
+      `${v0.producto.replace(/[^\w áéíóúñ-]/gi, '').slice(0, 40)} ${Date.now()}.jpg`);
+    const f = carpetaFotos_().createFile(blob);
+    f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    const foto = { id: f.getId(), url: 'https://lh3.googleusercontent.com/d/' + f.getId() + '=w1600' };
+    let lista;
+    conLock_(() => {
+      const ahora = misFotosTodas_()[pid] || { fotos: [] };
+      lista = (ahora.fotos || []).concat([foto]);
+      // la primera foto propia "congela" cómo estaban las de Armony, para avisar si cambian
+      guardarMisFotos_(pid, v0.producto, lista, ahora.fotos && ahora.fotos.length ? null : actual);
+    });
+    return { ok: true, foto, mias: lista };
+  }
+  if (b.op === 'ordenarFotos') {
+    const ids = (Array.isArray(b.ids) ? b.ids : []).map(String);
+    const quedan = ids.map(id => m.fotos.find(x => x.id === id)).filter(Boolean);
+    m.fotos.filter(x => ids.indexOf(x.id) < 0).forEach(x => { try { DriveApp.getFileById(x.id).setTrashed(true); } catch (_) {} });
+    conLock_(() => guardarMisFotos_(pid, v0.producto, quedan, null));
+    return { ok: true, mias: quedan };
+  }
+  if (b.op === 'fotosRevisadas') {
+    conLock_(() => guardarMisFotos_(pid, v0.producto, m.fotos, actual));
+    return { ok: true };
+  }
+  throw new Error('Operación desconocida.');
+}
+
+// En cada sincronización: si Armony cambió las fotos de un producto con fotos propias, lo marca y avisa por mail
+function revisarCambiosFotos_(filas) {
+  const mias = misFotosTodas_();
+  const pids = Object.keys(mias).filter(id => mias[id].fotos.length);
+  if (!pids.length) return;
+  const C = COLUMNAS_ARMONY, c = n => C.indexOf(n);
+  const actuales = {}, nombres = {}, links = {};
+  filas.forEach(f => {
+    const id = String(f[c('ID Producto')]);
+    if (pids.indexOf(id) < 0) return;
+    nombres[id] = f[c('Producto')]; links[id] = f[c('Link')];
+    const a = actuales[id] = actuales[id] || [];
+    String(f[c('Todas las imágenes')] || '').split(',').map(x => x.trim()).concat([f[c('Imagen principal')]])
+      .forEach(u => { if (u && a.indexOf(u) < 0) a.push(u); });
+  });
+  const h = hojaFotos_(), avisar = [];
+  pids.forEach(id => {
+    const m = mias[id];
+    if (!actuales[id] || m.cambio || !m.armony.length) return;
+    if (!mismasFotos_(m.armony, actuales[id])) {
+      h.getRange(m.fila, 5).setValue(new Date());
+      const nuevas = actuales[id].filter(u => m.armony.indexOf(u) < 0).length;
+      const sacadas = m.armony.filter(u => actuales[id].indexOf(u) < 0).length;
+      avisar.push(`• ${nombres[id]}: ${nuevas} foto(s) nueva(s), ${sacadas} quitada(s)\n   ${links[id]}`);
+    }
+  });
+  if (avisar.length && TIENDA.ADMINS.length) {
+    MailApp.sendEmail(TIENDA.ADMINS.join(','), `📸 Coquette: Armony cambió las fotos de ${avisar.length} producto(s)`,
+      `Estos productos tienen fotos tuyas y Armony cambió las originales. Fijate si querés generar nuevas (en tu panel → Publicaciones → 📸 Fotos cambiadas).\n\n${avisar.join('\n\n')}`);
+  }
 }
 
 // Para el panel: todos los productos con su estado, precios, variantes y avisos
@@ -260,6 +413,8 @@ function listaPublicaciones_() {
       t.costoMin = Math.min(t.costoMin, v.costo); t.costoMax = Math.max(t.costoMax, v.costo);
     }
   });
+  const mias = misFotosTodas_();
+  orden.forEach(id => { const m = mias[id]; prods[id].misFotos = m ? m.fotos.length : 0; prods[id].fotosCambiaron = !!(m && m.cambio && m.fotos.length); if (m && m.fotos.length) prods[id].imagen = m.fotos[0].url; });
   return orden.map(id => prods[id]);
 }
 
@@ -572,6 +727,7 @@ function admin_(b) {
   }
 
   if (b.op === 'publicaciones') return { productos: listaPublicaciones_() };
+  if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas'].indexOf(b.op) >= 0) return adminFotos_(b);
 
   if (b.op === 'publicar') {
     const id = String(b.pid || ''), estado = ['Publicado', 'Pendiente', 'Oculto'].indexOf(b.estado) >= 0 ? b.estado : '';
