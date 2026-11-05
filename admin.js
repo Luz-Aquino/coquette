@@ -93,8 +93,18 @@
     }
   }
 
+  // Entregas en punto de encuentro que faltan: para reenviar el código a quien no lo tenga
+  function pintarPendEncuentro() {
+    const lista = st.pedidos.filter(p => p.encuentro && ['Pagado', 'Preparando'].indexOf(p.estado) >= 0);
+    $('#nPendEnc').textContent = lista.length ? `(${lista.length} por entregar)` : '';
+    $('#listaPendEnc').innerHTML = lista.length ? lista.map(p => `<div class="pend-enc">
+        <span><b>${esc(p.cliente)}</b> · ${esc(p.pedido)}<small>${esc(p.email)} · ${esc(p.telefono)}</small></span>
+        <button type="button" class="boton secundario" data-reenviar="${esc(p.pedido)}">📧 Reenviar código</button>
+      </div>`).join('') : '<p>No hay entregas pendientes en el punto de encuentro.</p>';
+  }
   function pintar() {
     const ps = st.pedidos;
+    pintarPendEncuentro();
     const mes = new Date(); mes.setDate(1); mes.setHours(0, 0, 0, 0);
     const pagos = ps.filter(p => ['Pagado', 'Preparando', 'Enviado', 'Entregado'].indexOf(p.estado) >= 0);
     const delMes = pagos.filter(p => new Date(p.fecha) >= mes);
@@ -469,13 +479,16 @@
   $('#btnRecargar').addEventListener('click', cargar);
   $('#btnSalir').addEventListener('click', salir);
   $('#lista').addEventListener('submit', e => { e.preventDefault(); guardarPedido(e.target); });
+  async function reenviarCodigo(re) {
+    re.disabled = true; const txt = re.textContent; re.textContent = 'Enviando…';
+    const r = await post({ action: 'admin', op: 'reenviarCodigo', idToken: st.token, pedido: re.dataset.reenviar });
+    tostada(r.error || 'Listo: le reenviamos el código a su mail.');
+    re.textContent = r.error ? txt : '✔ Enviado'; re.disabled = false;
+  }
+  $('#listaPendEnc').addEventListener('click', e => { const re = e.target.closest('[data-reenviar]'); if (re) reenviarCodigo(re); });
   $('#lista').addEventListener('click', async e => {
     const re = e.target.closest('[data-reenviar]');
-    if (re) {
-      re.disabled = true;
-      const r = await post({ action: 'admin', op: 'reenviarCodigo', idToken: st.token, pedido: re.dataset.reenviar });
-      tostada(r.error || 'Le reenviamos el código por mail.'); re.disabled = false; return;
-    }
+    if (re) { reenviarCodigo(re); return; }
     if (!e.target.closest('[data-copiar]')) return;
     const id = e.target.closest('form').dataset.form;
     const p = st.pedidos.find(x => x.pedido === id);
@@ -509,6 +522,7 @@
       estados: ['Esperando pago', 'Pago pendiente', 'Pagado', 'Preparando', 'Enviado', 'Entregado', 'Pago rechazado', 'Cancelado', 'Revisar pago'],
       pedidos: [
         p('CQ261103-AB12', 'Pagado', 'Martina López', 'Buenos Aires (GBA)', 76500, 0, [{ nombre: 'VESTIDO SOPHIE LISO', detalle: 'Unidad · Negro · Único', cantidad: 2, precio: 35000, imagen: img, link: 'https://armonyfabricantes.com.ar/tienda/' }]),
+        Object.assign(p('CQ261105-EN01', 'Pagado', 'Julieta Ruiz', 'Buenos Aires (GBA)', 102000, 0, [{ nombre: 'CONJUNTO CARIBE LISO', detalle: 'Unidad · Negro · 2', cantidad: 3, precio: 34000, imagen: img, link: '' }]), { encuentro: true, envio: 'Punto de encuentro (sábados 12:00 hs)', costoEnvio: 0 }),
         p('CQ261102-ZX9P', 'Preparando', 'Carla Gómez', 'CABA', 169700, 1, [{ nombre: 'CONJUNTO CARIBE LISO', detalle: 'Pack x6 · Negro · 2', cantidad: 1, precio: 163200, imagen: img, link: 'https://armonyfabricantes.com.ar/tienda/' }]),
         p('CQ261030-MM3Q', 'Enviado', 'Sofía Díaz', 'Córdoba', 41500, 4, [{ nombre: 'BLUSA CANDELA LISO', detalle: 'Unidad · Blanco · Único', cantidad: 1, precio: 22250, imagen: img, link: '' }])
       ]

@@ -151,3 +151,10 @@ button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; he
 .codigo-ok ul { margin: 0 0 10px; padding-left: 18px; }
 .codigo-mal { margin-top: 12px !important; padding: 12px; border-radius: 12px; background: #FDECEC; color: #9B1C1C !important; font-weight: 600; }
 .estado.encuentro { background: #FFF0DA; color: #8A4B00; }
+
+.pendientes-encuentro { margin-top: 12px; border-top: 1px solid #F6E1E6; padding-top: 10px; font-size: 14px; }
+.pendientes-encuentro summary { cursor: pointer; color: var(--bordo); }
+.pendientes-encuentro summary span { color: var(--gris); }
+.pend-enc { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--linea); }
+.pend-enc small { display: block; color: var(--gris); }
+.pend-enc .boton { min-height: 40px; flex: 0 0 auto; }
