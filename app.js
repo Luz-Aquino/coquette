@@ -340,6 +340,9 @@
     $('#pFotos').innerHTML = p.imagenes.map((u, i) => `<img src="${esc(u)}" alt="${esc(p._nombre)}, foto ${i + 1}" referrerpolicy="no-referrer" ${i ? 'loading="lazy"' : ''}>`).join('');
     $('#pPuntos').innerHTML = p.imagenes.length > 1 ? p.imagenes.map((_, i) => `<button type="button" aria-label="Ver foto ${i + 1}" data-foto="${i}" ${i ? '' : 'aria-current="true"'}></button>`).join('') : '';
     $('#pFotos').scrollLeft = 0;
+    const varias = p.imagenes.length > 1;
+    $$('.galeria-flecha').forEach(b => { b.hidden = !varias; });
+    $('#pCuenta').hidden = !varias; $('#pCuenta').textContent = varias ? `1 / ${p.imagenes.length}` : '';
     $('#pFav').innerHTML = corazon(p, 'en-ficha');
     pintarRelacionados(p);
     pintarSeleccion();
@@ -1012,10 +1015,15 @@
       $('#pWhatsapp').href = `https://wa.me/${numWa}?text=${encodeURIComponent(`Hola! Quería consultar por ${p._nombre}: ${location.origin + location.pathname}#p-${p.id}`)}`;
     });
   }
+  document.querySelectorAll('.galeria-flecha').forEach(b => b.addEventListener('click', () => {
+    const c = $('#pFotos'), n = c.children.length, i = Math.round(c.scrollLeft / c.clientWidth);
+    irAFoto((i + Number(b.dataset.fotoPaso) + n) % n);
+  }));
   $('#pPuntos').addEventListener('click', e => { const b = e.target.closest('[data-foto]'); if (b) irAFoto(Number(b.dataset.foto)); });
   $('#pFotos').addEventListener('scroll', () => {
     const c = $('#pFotos'); const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
     $$('#pPuntos button').forEach((b, k) => b.toggleAttribute('aria-current', k === i));
+    if (c.children.length > 1) $('#pCuenta').textContent = `${i + 1} / ${c.children.length}`;
   }, { passive: true });
 
   $('#btnCarrito').addEventListener('click', abrirCarrito);

@@ -176,7 +176,7 @@ function armarCatalogo_(vars) {
       orden.push(v.pid);
     }
     v.imagenes.split(',').map(s => s.trim()).filter(Boolean).concat(v.imagen ? [v.imagen] : [])
-      .forEach(u => { if (p.imagenes.indexOf(u) < 0 && p.imagenes.length < 12) p.imagenes.push(u); });
+      .forEach(u => { if (p.imagenes.indexOf(u) < 0 && p.imagenes.length < 20) p.imagenes.push(u); });
     p.variantes.push({
       id: v.clave, color: v.color, talle: v.talle, tipo: v.tipo,
       precio: v.precio, stock: v.stock !== 'Agotado', imagen: v.imagen

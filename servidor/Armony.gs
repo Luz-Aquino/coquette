@@ -159,7 +159,9 @@ function armarFilas_(productos) {
       p.variations.forEach(vRef => {
         const v = variantes[vRef.id];
         const opc = clasificarAtributos_(vRef.attributes || [], mapaTerminos);
-        const imgsVar = v && v.images && v.images.length ? v.images.map(i => i.src) : imagenes;
+        // Foto propia de la variante primero (para mostrar el color elegido) + TODA la galería del producto
+        const propias = v && v.images && v.images.length ? v.images.map(i => i.src) : [];
+        const imgsVar = propias.concat(imagenes).filter((u, i, a) => u && a.indexOf(u) === i);
         filas.push(armarFila_(String(vRef.id), p, nombre, categoria, opc, v, imgsVar, descripcion, ahora));
       });
     } else {
