@@ -168,7 +168,7 @@
             <button class="boton principal" type="submit">Guardar cambios</button>
             <button class="boton secundario" type="button" data-copiar>Copiar datos de envío</button>
             ${p.encuentro ? `<button class="boton secundario" type="button" data-reenviar="${esc(p.pedido)}">Reenviar código por mail</button>
-            <a class="boton secundario" target="_blank" rel="noopener" href="https://wa.me/${esc(waAr(p.telefono))}?text=${encodeURIComponent(`Hola ${String(p.cliente).split(' ')[0]}! Te escribo de Coquette por tu pedido ${p.pedido}. Te espero el sábado a las 12 en el punto de encuentro. Acordate de traer tu código de entrega (te llegó por mail).`)}">WhatsApp a la clienta</a>` : ''}
+            <a class="boton secundario" target="_blank" rel="noopener" href="https://wa.me/${esc(waAr(p.telefono))}?text=${encodeURIComponent(`Hola ${String(p.cliente).split(' ')[0]}! Te escribo de Coquette por tu pedido ${p.pedido}. Te espero el sábado a las 12 del mediodía en la Estación Adrogué. Acordate de traer tu código de entrega (te llegó por mail).`)}">WhatsApp a la clienta</a>` : ''}
           </div>
           <small class="ancha">Al pasar el pedido a "Enviado" le llega un mail a la clienta con el número de seguimiento.</small>
         </form>

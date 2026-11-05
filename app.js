@@ -583,9 +583,9 @@
   }
   // Cotizador del carrito: la clienta compara domicilio y sucursal antes de pagar
   // Punto de encuentro (entrega en mano, gratis) solo para algunas provincias
-  const enc = () => (st.cat && st.cat.encuentro) || { dia: 'sábados', hora: '12:00 hs', lugar: '', provincias: ['CABA', 'Buenos Aires (GBA)'] };
+  const enc = () => (st.cat && st.cat.encuentro) || { dia: 'sábados', hora: '12:00 hs (mediodía)', lugar: 'Estación Adrogué', provincias: ['CABA', 'Buenos Aires (GBA)'] };
   const hayEncuentro = prov => enc().provincias.indexOf(prov) >= 0;
-  const textoEncuentro = () => { const e = enc(); return `${e.dia[0].toUpperCase() + e.dia.slice(1)} ${e.hora}${e.lugar ? ' · ' + e.lugar : ' · Almirante Brown (zona sur)'}`; };
+  const textoEncuentro = () => { const e = enc(); return `${e.dia[0].toUpperCase() + e.dia.slice(1)} ${String(e.hora).replace(' (mediodía)', '')} · ${e.lugar || 'zona sur'}`; };
   function pintarCotizador(lineas) {
     const caja = $('#cotizar');
     caja.hidden = !lineas.length || st.paso !== 'carrito';

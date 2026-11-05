@@ -21,8 +21,9 @@ const TIENDA = {
   HOJA_CARRITOS: 'Carritos',
   HOJA_PUBLICACION: 'Publicación',
   // Punto de encuentro (entrega en mano, gratis). Solo para CABA y GBA.
-  ENCUENTRO_DIA: 'sábados', ENCUENTRO_HORA: '12:00 hs',
-  ENCUENTRO_LUGAR: '',              // vacío = "te confirmamos el lugar por mail"
+  ENCUENTRO_DIA: 'sábados', ENCUENTRO_HORA: '12:00 hs (mediodía)',
+  ENCUENTRO_LUGAR: 'Estación Adrogué',
+  ENCUENTRO_MAPA: 'https://www.google.com/maps/search/?api=1&query=Estaci%C3%B3n+Adrogu%C3%A9%2C+B1846+Adrogu%C3%A9%2C+Buenos+Aires',
   ENCUENTRO_PROVINCIAS: ['CABA', 'Buenos Aires (GBA)'],
   HOJA_FOTOS: 'Fotos',              // fotos propias de Luz por producto (reemplazan a las de Armony)
   CARPETA_FOTOS: 'Coquette – Fotos', // carpeta de Google Drive donde se guardan // qué productos se ven en la tienda (Publicado / Pendiente / Oculto)
@@ -844,7 +845,7 @@ function mailPagoCliente_(d) {
       `<p>Tu pago fue aprobado. Ya estamos preparando tu pedido <b>${esc_(d['Pedido'])}</b>.</p>` +
       tablaItems_(items, d) +
       (d['Código entrega']
-        ? `<p><b>Entrega:</b> punto de encuentro, el <b>sábado ${proximoSabado_()}</b> a las ${TIENDA.ENCUENTRO_HORA} (${esc_(lugarEncuentro_())}).</p>
+        ? `<p><b>Entrega:</b> punto de encuentro, el <b>sábado ${proximoSabado_()}</b> a las ${TIENDA.ENCUENTRO_HORA} en <b>${esc_(lugarEncuentro_())}</b>${mapaEncuentro_()}.</p>
            <p>Tu código de entrega, <b>único y personal</b>. Mostralo cuando retires:</p>
            <p style="text-align:center;margin:18px 0"><span style="display:inline-block;padding:14px 26px;border-radius:14px;background:#FBEBED;color:#7A1F3D;font:700 30px/1 Arial,sans-serif;letter-spacing:6px">${esc_(d['Código entrega'])}</span></p>`
         : `<p><b>Envío:</b> ${esc_(d['Envío'])}<br>${esc_([d['Dirección'], d['Ciudad'], d['Provincia'], d['CP']].filter(Boolean).join(', '))}</p>` +
@@ -1056,11 +1057,12 @@ function proximoSabado_(desde) {
   return Utilities.formatDate(d, TIENDA.ZONA_HORARIA, 'dd/MM');
 }
 const lugarEncuentro_ = () => TIENDA.ENCUENTRO_LUGAR || 'te escribimos para confirmarte el lugar exacto';
+const mapaEncuentro_ = () => TIENDA.ENCUENTRO_MAPA ? ` · <a href="${TIENDA.ENCUENTRO_MAPA}">ver en el mapa</a>` : '';
 function mailCodigoEntrega_(d) {
   MailApp.sendEmail({
     to: d['Email'], name: TIENDA.NOMBRE, replyTo: TIENDA.CONTACTO,
     subject: `${TIENDA.NOMBRE} · Tu código de entrega (pedido ${d['Pedido']})`,
-    htmlBody: plantillaMail_('Tu código de entrega', `<p>Elegiste retirar tu pedido <b>${esc_(d['Pedido'])}</b> en el <b>punto de encuentro</b>, los ${TIENDA.ENCUENTRO_DIA} a las ${TIENDA.ENCUENTRO_HORA} (${esc_(lugarEncuentro_())}).</p>
+    htmlBody: plantillaMail_('Tu código de entrega', `<p>Elegiste retirar tu pedido <b>${esc_(d['Pedido'])}</b> en el <b>punto de encuentro</b>, los ${TIENDA.ENCUENTRO_DIA} a las ${TIENDA.ENCUENTRO_HORA} (${esc_(lugarEncuentro_())}${mapaEncuentro_()}).</p>
       <p style="text-align:center;margin:22px 0"><span style="display:inline-block;padding:14px 26px;border-radius:14px;background:#FBEBED;color:#7A1F3D;font:700 30px/1 Arial,sans-serif;letter-spacing:6px">${esc_(d['Código entrega'])}</span></p>
       <p>Mostralo cuando retires: es <b>único y personal</b>, no lo compartas con nadie. Con este código confirmamos que la entrega es tuya.</p>`)
   });
