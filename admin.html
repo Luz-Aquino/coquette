@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611051258">
-  <link rel="stylesheet" href="admin.css?v=202611051258">
+  <link rel="stylesheet" href="styles.css?v=202611051310">
+  <link rel="stylesheet" href="admin.css?v=202611051310">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -69,24 +69,45 @@
       <h2 id="tituloFotos">Fotos</h2>
       <p class="fotos-sub" id="fotosSub"></p>
       <div class="fotos-cambio" id="fotosCambio" hidden></div>
+
       <section>
-        <div class="fotos-cabeza"><h3>Mis fotos</h3><span class="fotos-nota">La primera es la portada. Si no subís ninguna, se ven las de Armony.</span></div>
-        <div class="fotos-grilla" id="fotosMias"></div>
-        <label class="boton principal fotos-subir"><input type="file" id="fotosInput" accept="image/*" multiple hidden>＋ Subir fotos</label>
+        <div class="fotos-cabeza">
+          <h3>Fotos originales de Armony <small id="nArmony"></small></h3>
+          <div class="fotos-botones">
+            <button class="boton secundario" id="zipArmony">⬇ Descargar todas (alta calidad)</button>
+            <a id="fotosLink" target="_blank" rel="noopener">Ver publicación ↗</a>
+          </div>
+        </div>
+        <p class="fotos-nota">Tocá una foto para verla en grande. Las descargas son en la calidad original, para usarlas en Gemini.</p>
+        <div class="fotos-grilla grande" id="fotosArmony"></div>
+      </section>
+
+      <section>
+        <div class="fotos-cabeza">
+          <h3>Mis fotos <small id="nMias"></small></h3>
+          <div class="fotos-botones">
+            <button class="boton secundario" id="zipMias" hidden>⬇ Descargar mis fotos</button>
+            <label class="boton principal fotos-subir"><input type="file" id="fotosInput" accept="image/*" multiple hidden>＋ Subir fotos</label>
+          </div>
+        </div>
+        <p class="fotos-nota">La primera es la portada. En tu Drive se guardan en buena calidad; la tienda muestra una versión liviana para que cargue rápido.</p>
         <p class="fotos-progreso" id="fotosProgreso" hidden></p>
+        <div class="fotos-grilla grande" id="fotosMias"></div>
       </section>
-      <section>
-        <div class="fotos-cabeza"><h3>Fotos originales de Armony</h3><a id="fotosLink" target="_blank" rel="noopener">Ver publicación ↗</a></div>
-        <p class="fotos-nota">Tocá una foto para abrirla en grande y guardarla (mantené apretado o clic derecho → Guardar imagen) para usarla en Gemini.</p>
-        <div class="fotos-grilla" id="fotosArmony"></div>
-      </section>
+    </div>
+    <div class="visor" id="visor" hidden>
+      <button class="visor-cerrar" data-visor="cerrar" aria-label="Cerrar">×</button>
+      <button class="visor-flecha izq" data-visor="-1" aria-label="Anterior">‹</button>
+      <img id="visorImg" alt="">
+      <button class="visor-flecha der" data-visor="1" aria-label="Siguiente">›</button>
+      <div class="visor-pie"><span id="visorCuenta"></span><a id="visorBajar" target="_blank" rel="noopener" class="boton principal">⬇ Abrir en alta calidad</a></div>
     </div>
   </dialog>
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611051258"></script>
+  <script src="config.js?v=202611051310"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611051258"></script>
+  <script src="admin.js?v=202611051310"></script>
 </body>
 </html>

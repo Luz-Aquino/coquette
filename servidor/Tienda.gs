@@ -155,7 +155,8 @@ function leerVariantes_() {
     costo: (Number(f[i('Costo')]) || 0) * (esPromo3_(f[i('Otras opciones')]) && String(f[i('Tipo venta')]) === 'Pack x6' ? 2 : 1),
     otras: String(f[i('Otras opciones')] || ''),
     dosPromos: esPromo3_(f[i('Otras opciones')]) && String(f[i('Tipo venta')]) === 'Pack x6',
-    aviso: i('Aviso') >= 0 ? String(f[i('Aviso')] || '') : ''
+    aviso: i('Aviso') >= 0 ? String(f[i('Aviso')] || '') : '',
+    imagenesWeb: i('Imágenes web') >= 0 ? String(f[i('Imágenes web')] || '') : ''
   })).filter(v => v.clave && v.pid);
 }
 
@@ -178,11 +179,15 @@ function armarCatalogo_(vars) {
       };
       orden.push(v.pid);
     }
-    v.imagenes.split(',').map(s => s.trim()).filter(Boolean).concat(v.imagen ? [v.imagen] : [])
-      .forEach(u => { if (p.imagenes.indexOf(u) < 0 && p.imagenes.length < 20) p.imagenes.push(u); });
+    const orig = v.imagenes.split(',').map(s => s.trim()).filter(Boolean);
+    const web = v.imagenesWeb ? v.imagenesWeb.split(',').map(s => s.trim()) : [];
+    const liviana = u => { const k = orig.indexOf(u); return k >= 0 && web[k] ? web[k] : u; };
+    orig.map(liviana).concat(v.imagen ? [liviana(v.imagen)] : [])
+      .forEach(u => { if (u && p.imagenes.indexOf(u) < 0 && p.imagenes.length < 20) p.imagenes.push(u); });
+    v.imagenLiviana = v.imagen ? liviana(v.imagen) : '';
     p.variantes.push({
       id: v.clave, color: v.color, talle: v.talle, tipo: v.tipo,
-      precio: v.precio, stock: v.stock !== 'Agotado', imagen: v.imagen
+      precio: v.precio, stock: v.stock !== 'Agotado', imagen: v.imagenLiviana || v.imagen
     });
   });
   const estados = estadosPublicacion_();
@@ -190,7 +195,7 @@ function armarCatalogo_(vars) {
   orden.forEach(id => {
     const f = mias[id];
     if (f && f.fotos.length) {
-      prods[id].imagenes = f.fotos.map(x => x.url);
+      prods[id].imagenes = f.fotos.map(x => urlDrive_(x.id, 'w900')); // liviana para la web
       prods[id].variantes.forEach(v => { v.imagen = ''; }); // las fotos por color de Armony no aplican
     }
   });
@@ -281,6 +286,8 @@ function fotosArmony_(pid, vars) {
   });
   return fotos;
 }
+// Foto de Drive en el tamaño pedido: 'w900' para la web, 'w300' miniatura, 's0' original
+const urlDrive_ = (id, tam) => 'https://lh3.googleusercontent.com/d/' + id + '=' + (tam || 'w900');
 const mismasFotos_ = (a, b) => a.slice().sort().join('|') === b.slice().sort().join('|');
 
 function carpetaFotos_() {
@@ -322,18 +329,21 @@ function adminFotos_(b) {
   const m = misFotosTodas_()[pid] || { fotos: [], armony: [], cambio: '' };
 
   if (b.op === 'fotos') {
-    return { pid, nombre: v0.producto, link: v0.link, armony: actual, mias: m.fotos,
+    const webDe = {};
+    vars.filter(v => v.pid === pid).forEach(v => { const o = v.imagenes.split(',').map(x => x.trim()), w = v.imagenesWeb.split(',').map(x => x.trim()); o.forEach((u, k) => { if (w[k]) webDe[u] = w[k]; }); });
+    return { pid, nombre: v0.producto, link: v0.link, armony: actual, armonyWeb: actual.map(u => webDe[u] || u),
+      mias: m.fotos.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })),
       cambio: m.cambio, armonyAntes: m.cambio ? m.armony : [] };
   }
   if (b.op === 'subirFoto') {
     const datos = String(b.datos || '').replace(/^data:image\/\w+;base64,/, '');
-    if (!datos || datos.length > 8e6) throw new Error('La foto no es válida o es muy pesada.');
+    if (!datos || datos.length > 14e6) throw new Error('La foto no es válida o es muy pesada.');
     if ((m.fotos || []).length >= 15) throw new Error('Máximo 15 fotos por producto.');
     const blob = Utilities.newBlob(Utilities.base64Decode(datos), 'image/jpeg',
       `${v0.producto.replace(/[^\w áéíóúñ-]/gi, '').slice(0, 40)} ${Date.now()}.jpg`);
     const f = carpetaFotos_().createFile(blob);
     f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-    const foto = { id: f.getId(), url: 'https://lh3.googleusercontent.com/d/' + f.getId() + '=w1600' };
+    const foto = { id: f.getId(), url: urlDrive_(f.getId(), 's0') };
     let lista;
     conLock_(() => {
       const ahora = misFotosTodas_()[pid] || { fotos: [] };
@@ -341,14 +351,25 @@ function adminFotos_(b) {
       // la primera foto propia "congela" cómo estaban las de Armony, para avisar si cambian
       guardarMisFotos_(pid, v0.producto, lista, ahora.fotos && ahora.fotos.length ? null : actual);
     });
-    return { ok: true, foto, mias: lista };
+    return { ok: true, foto, mias: lista.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })) };
   }
   if (b.op === 'ordenarFotos') {
     const ids = (Array.isArray(b.ids) ? b.ids : []).map(String);
     const quedan = ids.map(id => m.fotos.find(x => x.id === id)).filter(Boolean);
     m.fotos.filter(x => ids.indexOf(x.id) < 0).forEach(x => { try { DriveApp.getFileById(x.id).setTrashed(true); } catch (_) {} });
     conLock_(() => guardarMisFotos_(pid, v0.producto, quedan, null));
-    return { ok: true, mias: quedan };
+    return { ok: true, mias: quedan.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })) };
+  }
+  if (b.op === 'zipFotos') {
+    const cuales = b.mias ? m.fotos.map(x => urlDrive_(x.id, 's0')) : actual;
+    if (!cuales.length) throw new Error('No hay fotos para descargar.');
+    const rs = UrlFetchApp.fetchAll(cuales.map(u => ({ url: u, muteHttpExceptions: true, followRedirects: true })));
+    const base = v0.producto.replace(/[^\w áéíóúñ-]/gi, '').trim().slice(0, 40) || 'producto';
+    const blobs = rs.map((r, k) => r.getResponseCode() === 200 ? r.getBlob().setName(`${base} ${k + 1}.jpg`) : null).filter(Boolean);
+    if (!blobs.length) throw new Error('No pude bajar las fotos. Probá de nuevo.');
+    const zip = Utilities.zip(blobs, `${base} - ${b.mias ? 'mis fotos' : 'Armony'}.zip`);
+    const f = carpetaFotos_().createFile(zip);
+    return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + f.getId(), cantidad: blobs.length };
   }
   if (b.op === 'fotosRevisadas') {
     conLock_(() => guardarMisFotos_(pid, v0.producto, m.fotos, actual));
@@ -400,7 +421,7 @@ function listaPublicaciones_() {
   leerVariantes_().forEach(v => {
     let p = prods[v.pid];
     if (!p) {
-      p = prods[v.pid] = { id: v.pid, nombre: v.producto, categoria: v.categoria, link: v.link, imagen: v.imagen,
+      p = prods[v.pid] = { id: v.pid, nombre: v.producto, categoria: v.categoria, link: v.link, imagen: (v.imagenesWeb.split(',')[0] || '').trim() || v.imagen,
         estado: estados[v.pid] || 'Publicado', detectado: (extra[v.pid] || {}).detectado || '', variantes: 0, conStock: 0, tipos: {}, avisos: [] };
       orden.push(v.pid);
     }
@@ -414,7 +435,7 @@ function listaPublicaciones_() {
     }
   });
   const mias = misFotosTodas_();
-  orden.forEach(id => { const m = mias[id]; prods[id].misFotos = m ? m.fotos.length : 0; prods[id].fotosCambiaron = !!(m && m.cambio && m.fotos.length); if (m && m.fotos.length) prods[id].imagen = m.fotos[0].url; });
+  orden.forEach(id => { const m = mias[id]; prods[id].misFotos = m ? m.fotos.length : 0; prods[id].fotosCambiaron = !!(m && m.cambio && m.fotos.length); if (m && m.fotos.length) prods[id].imagen = urlDrive_(m.fotos[0].id, 'w300'); });
   return orden.map(id => prods[id]);
 }
 
@@ -727,7 +748,7 @@ function admin_(b) {
   }
 
   if (b.op === 'publicaciones') return { productos: listaPublicaciones_() };
-  if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas'].indexOf(b.op) >= 0) return adminFotos_(b);
+  if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas', 'zipFotos'].indexOf(b.op) >= 0) return adminFotos_(b);
 
   if (b.op === 'publicar') {
     const id = String(b.pid || ''), estado = ['Publicado', 'Pendiente', 'Oculto'].indexOf(b.estado) >= 0 ? b.estado : '';

@@ -108,3 +108,22 @@
 .fotos-cambio { padding: 12px; border-radius: 12px; background: #FFF6E0; border: 1px solid #F0D58C; color: #6B4E0F; font-size: 14px; }
 .fotos-cambio .boton { margin-top: 8px; min-height: 40px; }
 .fotos-aviso { background: #EEF4FF; border-color: #BFD3F5; color: #24426E; }
+
+/* Fotos v2: grandes, visor y descargas */
+.fotos-dlg .modal-contenido { width: min(980px, 100%); }
+.fotos-cabeza h3 small { color: var(--gris); font: 400 14px var(--sans); }
+.fotos-botones { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.fotos-botones .boton { min-height: 40px; }
+.fotos-grilla.grande { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+@media (max-width: 520px) { .fotos-grilla.grande { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; height: 100%; background: var(--rosa); display: block; }
+.foto-ver img { width: 100%; height: 100%; object-fit: cover; }
+.portada.nueva { background: #E0A100; left: auto; right: 6px; }
+.visor { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(20,8,14,.92); }
+.visor[hidden] { display: none; }
+.visor img { max-width: 92vw; max-height: 80vh; object-fit: contain; border-radius: 8px; }
+.visor-cerrar { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border-radius: 50%; border: 0; background: #fff; font-size: 26px; cursor: pointer; }
+.visor-flecha { position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%; border: 0; background: rgba(255,255,255,.9); color: var(--bordo); font-size: 28px; cursor: pointer; }
+.visor-flecha.izq { left: 14px; } .visor-flecha.der { right: 14px; }
+.visor-pie { position: absolute; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 14px; color: #fff; font-size: 14px; }
+.visor-pie .boton { min-height: 42px; text-decoration: none; display: inline-flex; align-items: center; }

@@ -28,8 +28,20 @@ const ARMONY = {
 const COLUMNAS_ARMONY = [
   'Clave', 'ID Producto', 'Producto', 'Categoría', 'Color', 'Talle', 'Otras opciones',
   'Costo', 'Precio venta', 'Precio regular', 'En oferta', 'Stock', 'Stock restante',
-  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta', 'Aviso'
+  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta', 'Aviso', 'Imágenes web'
 ];
+
+// Versión liviana (~600 px) de cada foto, para que la tienda cargue rápido. Las originales quedan en "Todas las imágenes".
+let WEB_DE = {};
+function registrarWeb_(img) {
+  if (!img || !img.src) return;
+  let mejor = '', ancho = Infinity;
+  String(img.srcset || '').split(',').forEach(par => {
+    const m = par.trim().match(/^(\S+)\s+(\d+)w$/);
+    if (m && Number(m[2]) >= 500 && Number(m[2]) < ancho) { mejor = m[1]; ancho = Number(m[2]); }
+  });
+  WEB_DE[img.src] = mejor || img.thumbnail || img.src;
+}
 
 /* ===================== FUNCIÓN PRINCIPAL ===================== */
 
@@ -148,7 +160,9 @@ function armarFilas_(productos) {
   Logger.log(`Variantes: ${idsVariantes.length} (en lote: ${idsVariantes.length - faltantes.length}, de a una: ${faltantes.length})`);
 
   const filas = [];
+  WEB_DE = {};
   productos.forEach(p => {
+    (p.images || []).forEach(registrarWeb_);
     const nombre = limpiarTexto_(p.name);
     const categoria = (p.categories || []).map(c => limpiarTexto_(c.name)).join(', ');
     const imagenes = (p.images || []).map(img => img.src);
@@ -160,6 +174,7 @@ function armarFilas_(productos) {
         const v = variantes[vRef.id];
         const opc = clasificarAtributos_(vRef.attributes || [], mapaTerminos);
         // Foto propia de la variante primero (para mostrar el color elegido) + TODA la galería del producto
+        if (v && v.images) v.images.forEach(registrarWeb_);
         const propias = v && v.images && v.images.length ? v.images.map(i => i.src) : [];
         const imgsVar = propias.concat(imagenes).filter((u, i, a) => u && a.indexOf(u) === i);
         filas.push(armarFila_(String(vRef.id), p, nombre, categoria, opc, v, imgsVar, descripcion, ahora));
@@ -184,7 +199,8 @@ function armarFila_(clave, p, nombre, categoria, opc, datos, imagenes, descripci
   return [
     clave, p.id, nombre, categoria, opc.color, opc.talle, opc.otras,
     costo, '', regular, oferta, stock, restante, // el precio de venta se calcula en definirPrecios_
-    imagenes[0] || '', imagenes.join(', '), descripcion, p.permalink, ahora, '', ''
+    imagenes[0] || '', imagenes.join(', '), descripcion, p.permalink, ahora, '', '',
+    imagenes.map(u => WEB_DE[u] || u).join(', ')
   ];
 }
 

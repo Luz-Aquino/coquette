@@ -255,42 +255,81 @@
     } catch (e) { tostada(e.message); btn.disabled = false; }
   }
   /* ---------- Fotos propias ---------- */
-  const fs = { pid: null, mias: [] };
+  const fs = { pid: null, mias: [], armony: [], armonyWeb: [], visor: [], i: 0 };
   const dlgF = $('#dlgFotos');
-  dlgF.addEventListener('click', e => { if (e.target === dlgF || e.target.closest('[data-cerrar]')) dlgF.close(); });
-  dlgF.addEventListener('close', () => { if (fs.cambiado) cargarPublicaciones(true); fs.cambiado = false; });
+  dlgF.addEventListener('click', e => { if (e.target === dlgF || (e.target.closest('[data-cerrar]') && !e.target.closest('.visor'))) dlgF.close(); });
+  dlgF.addEventListener('close', () => { $('#visor').hidden = true; if (fs.cambiado) cargarPublicaciones(true); fs.cambiado = false; });
+  const fotoHtml = (mini, i, tipo) => `<button type="button" class="foto" data-ver="${tipo}" data-i="${i}"><img src="${esc(mini)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`;
   async function abrirFotos(pid) {
-    fs.pid = pid; fs.mias = [];
-    $('#fotosMias').innerHTML = '<p class="fotos-nota">Cargando…</p>'; $('#fotosArmony').innerHTML = ''; $('#fotosCambio').hidden = true;
+    Object.assign(fs, { pid, mias: [], armony: [], armonyWeb: [] });
+    $('#fotosMias').innerHTML = ''; $('#fotosArmony').innerHTML = '<p class="fotos-nota">Cargando fotos…</p>'; $('#fotosCambio').hidden = true;
     const p = (st.pubs || []).find(x => x.id === pid);
-    $('#tituloFotos').textContent = p ? p.nombre : 'Fotos';
-    $('#fotosSub').textContent = '';
+    $('#tituloFotos').textContent = p ? p.nombre : 'Fotos'; $('#fotosSub').textContent = '';
     dlgF.showModal();
     try {
       const r = await post({ action: 'admin', op: 'fotos', idToken: st.token, pid });
       if (r.error) throw new Error(r.error);
-      fs.mias = r.mias; $('#fotosLink').href = r.link;
-      $('#fotosSub').textContent = r.mias.length ? `${r.mias.length} foto(s) tuyas · la tienda muestra estas` : 'Todavía sin fotos tuyas · la tienda muestra las de Armony';
-      $('#fotosArmony').innerHTML = r.armony.map(u => `<a class="foto" href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer"></a>`).join('');
+      Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony });
+      $('#fotosLink').href = r.link;
+      $('#nArmony').textContent = `(${r.armony.length})`;
+      $('#fotosArmony').innerHTML = fs.armonyWeb.map((u, i) => fotoHtml(u, i, 'armony')).join('') || '<p class="fotos-nota">Armony no tiene fotos en esta publicación.</p>';
       if (r.cambio) {
         const nuevas = r.armony.filter(u => r.armonyAntes.indexOf(u) < 0);
         $('#fotosCambio').hidden = false;
-        $('#fotosCambio').innerHTML = `<b>📸 Armony cambió las fotos el ${new Date(r.cambio).toLocaleDateString('es-AR')}.</b> ${nuevas.length ? 'Fotos nuevas:' : 'Quitaron fotos.'}
-          <div class="fotos-grilla chica">${nuevas.map(u => `<a class="foto" href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" referrerpolicy="no-referrer"></a>`).join('')}</div>
+        $('#fotosCambio').innerHTML = `<b>📸 Armony cambió las fotos el ${new Date(r.cambio).toLocaleDateString('es-AR')}.</b> ${nuevas.length ? `Hay ${nuevas.length} foto(s) nueva(s): están marcadas con ★ abajo.` : 'Quitaron fotos.'}
           <button class="boton secundario" id="fotosRevisadas">Ya lo revisé</button>`;
+        nuevas.forEach(u => { const k = r.armony.indexOf(u); const el = $(`#fotosArmony [data-i="${k}"]`); if (el) el.insertAdjacentHTML('beforeend', '<span class="portada nueva">★ Nueva</span>'); });
       }
       pintarMias();
-    } catch (e) { $('#fotosMias').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+    } catch (e) { $('#fotosArmony').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
   }
   function pintarMias() {
+    $('#nMias').textContent = fs.mias.length ? `(${fs.mias.length})` : '';
+    $('#zipMias').hidden = !fs.mias.length;
+    $('#fotosSub').textContent = fs.mias.length ? `La tienda muestra tus ${fs.mias.length} foto(s)` : 'Todavía sin fotos tuyas · la tienda muestra las de Armony';
     $('#fotosMias').innerHTML = fs.mias.length ? fs.mias.map((f, i) => `<div class="foto mia" data-i="${i}">
-        <img src="${esc(f.url)}" alt="" loading="lazy">${i === 0 ? '<span class="portada">Portada</span>' : ''}
+        <button type="button" class="foto-ver" data-ver="mias" data-i="${i}"><img src="${esc(f.mini || f.url)}" alt="" loading="lazy"></button>${i === 0 ? '<span class="portada">Portada</span>' : ''}
         <div class="foto-acciones">
           <button type="button" data-mover="-1" aria-label="Mover a la izquierda" ${i === 0 ? 'disabled' : ''}>‹</button>
           <button type="button" data-quitar aria-label="Quitar foto">✕</button>
           <button type="button" data-mover="1" aria-label="Mover a la derecha" ${i === fs.mias.length - 1 ? 'disabled' : ''}>›</button>
-        </div></div>`).join('') : '<p class="fotos-nota">Subí tus fotos generadas con Gemini. Se achican solas para que la tienda cargue rápido.</p>';
+        </div></div>`).join('') : '<p class="fotos-nota">Subí tus fotos generadas con Gemini.</p>';
   }
+  // Visor en grande
+  function abrirVisor(tipo, i) {
+    fs.visor = tipo === 'mias' ? fs.mias.map(f => ({ ver: f.url, alta: f.url })) : fs.armony.map((u, k) => ({ ver: u, alta: u }));
+    fs.i = i; pintarVisor(); $('#visor').hidden = false;
+  }
+  function pintarVisor() {
+    const f = fs.visor[fs.i]; if (!f) return;
+    $('#visorImg').src = f.ver; $('#visorBajar').href = f.alta;
+    $('#visorCuenta').textContent = `${fs.i + 1} / ${fs.visor.length}`;
+  }
+  $('#visor').addEventListener('click', e => {
+    const b = e.target.closest('[data-visor]');
+    if (!b) { if (e.target.id === 'visor') $('#visor').hidden = true; return; }
+    if (b.dataset.visor === 'cerrar') { $('#visor').hidden = true; return; }
+    fs.i = (fs.i + Number(b.dataset.visor) + fs.visor.length) % fs.visor.length; pintarVisor();
+  });
+  dlgF.addEventListener('keydown', e => {
+    if ($('#visor').hidden) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { fs.i = (fs.i + (e.key === 'ArrowRight' ? 1 : -1) + fs.visor.length) % fs.visor.length; pintarVisor(); }
+    if (e.key === 'Escape') { e.preventDefault(); $('#visor').hidden = true; }
+  });
+  dlgF.addEventListener('click', e => { const v = e.target.closest('[data-ver]'); if (v && !e.target.closest('.foto-acciones')) abrirVisor(v.dataset.ver, Number(v.dataset.i)); });
+  // Descargar todas en un ZIP (calidad original)
+  async function bajarZip(btn, mias) {
+    const txt = btn.textContent; btn.disabled = true; btn.textContent = 'Preparando…';
+    try {
+      const r = await post({ action: 'admin', op: 'zipFotos', idToken: st.token, pid: fs.pid, mias });
+      if (r.error) throw new Error(r.error);
+      location.href = r.url;
+      tostada(`Descargando ${r.cantidad} foto(s)…`);
+    } catch (e) { tostada(e.message); }
+    btn.disabled = false; btn.textContent = txt;
+  }
+  $('#zipArmony').addEventListener('click', e => bajarZip(e.currentTarget, false));
+  $('#zipMias').addEventListener('click', e => bajarZip(e.currentTarget, true));
   async function guardarOrden(lista) {
     try {
       const r = await post({ action: 'admin', op: 'ordenarFotos', idToken: st.token, pid: fs.pid, ids: lista.map(f => f.id) });
@@ -298,15 +337,15 @@
       fs.mias = r.mias; fs.cambiado = true; pintarMias();
     } catch (e) { tostada(e.message); }
   }
-  // Achica la foto a 1600 px como máximo y la pasa a JPEG
-  function achicar(file) {
+  // Guarda en buena calidad (hasta 2400 px); la web después usa una versión liviana
+  function preparar(file) {
     return new Promise((ok, mal) => {
       const img = new Image(), url = URL.createObjectURL(file);
       img.onload = () => {
-        const max = 1600, k = Math.min(1, max / Math.max(img.width, img.height));
+        const max = 2400, k = Math.min(1, max / Math.max(img.width, img.height));
         const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-        URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.86));
+        URL.revokeObjectURL(url); ok(c.toDataURL('image/jpeg', 0.92));
       };
       img.onerror = () => { URL.revokeObjectURL(url); mal(new Error('No pude leer ' + file.name)); };
       img.src = url;
@@ -318,17 +357,16 @@
     for (let i = 0; i < archivos.length; i++) {
       prog.textContent = `Subiendo ${i + 1} de ${archivos.length}…`;
       try {
-        const datos = await achicar(archivos[i]);
+        const datos = await preparar(archivos[i]);
         const r = await post({ action: 'admin', op: 'subirFoto', idToken: st.token, pid: fs.pid, datos });
         if (r.error) throw new Error(r.error);
         fs.mias = r.mias; fs.cambiado = true; pintarMias();
       } catch (err) { tostada(err.message); }
     }
     prog.textContent = 'Listo ✔'; setTimeout(() => { prog.hidden = true; }, 2000);
-    $('#fotosSub').textContent = `${fs.mias.length} foto(s) tuyas · la tienda muestra estas`;
   });
   $('#fotosMias').addEventListener('click', e => {
-    const caja = e.target.closest('.foto.mia'); if (!caja) return;
+    const caja = e.target.closest('.foto.mia'); if (!caja || !e.target.closest('.foto-acciones')) return;
     const i = Number(caja.dataset.i), lista = fs.mias.slice();
     if (e.target.closest('[data-quitar]')) { lista.splice(i, 1); guardarOrden(lista); }
     const mv = e.target.closest('[data-mover]');
@@ -373,6 +411,7 @@
   /* ---------- Datos de demostración ---------- */
   function demo(b) {
     if (b.op === 'publicar' || b.op === 'fotosRevisadas') return Promise.resolve({ ok: true });
+    if (b.op === 'zipFotos') return Promise.resolve({ error: 'En la demostración no se descargan fotos.' });
     if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'] });
     if (b.op === 'subirFoto') { demo.mias = (demo.mias || []).concat([{ id: 'd' + Date.now(), url: b.datos }]); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'ordenarFotos') { demo.mias = b.ids.map(id => (demo.mias || []).find(x => x.id === id)).filter(Boolean); return Promise.resolve({ ok: true, mias: demo.mias }); }
