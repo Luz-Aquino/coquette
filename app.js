@@ -343,6 +343,7 @@
     const varias = p.imagenes.length > 1;
     $$('.galeria-flecha').forEach(b => { b.hidden = !varias; });
     $('#pCuenta').hidden = !varias; $('#pCuenta').textContent = varias ? `1 / ${p.imagenes.length}` : '';
+    iniciarPase(varias);
     $('#pFav').innerHTML = corazon(p, 'en-ficha');
     pintarRelacionados(p);
     pintarSeleccion();
@@ -422,6 +423,21 @@
     $('#agregar').textContent = ok ? 'Agregar al carrito' : 'Sin stock';
     if (v && v.imagen) irAFoto(s.p.imagenes.indexOf(v.imagen));
   }
+
+  // Las fotos de la ficha pasan solas cada 4,5 s; se frena apenas la clienta toca o desliza
+  let tPase;
+  function iniciarPase(varias) {
+    clearInterval(tPase);
+    if (!varias || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    tPase = setInterval(() => {
+      const c = $('#pFotos'); if (!$('#dlgProducto').open || !c.children.length) return clearInterval(tPase);
+      const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
+      irAFoto((i + 1) % c.children.length);
+    }, 4500);
+  }
+  const frenarPase = () => clearInterval(tPase);
+  ['pointerdown', 'wheel', 'touchstart'].forEach(ev => $('#dlgProducto .galeria').addEventListener(ev, frenarPase, { passive: true }));
+  $('#dlgProducto').addEventListener('close', frenarPase);
 
   function irAFoto(i) {
     if (i < 0) return;

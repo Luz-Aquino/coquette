@@ -127,3 +127,14 @@ button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; he
 .visor-flecha.izq { left: 14px; } .visor-flecha.der { right: 14px; }
 .visor-pie { position: absolute; bottom: 18px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 14px; color: #fff; font-size: 14px; }
 .visor-pie .boton { min-height: 42px; text-decoration: none; display: inline-flex; align-items: center; }
+
+/* Selección de fotos a publicar */
+.fotos-eleccion { margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: #FBEBED; border: 1px solid #F1D3DA; font-size: 14px; }
+.fotos-eleccion p { margin: 0 0 6px; }
+.eleccion-estado { color: var(--bordo); font-weight: 600; }
+.fotos-eleccion .boton { min-height: 38px; }
+.elegir { position: absolute; top: 8px; right: 8px; z-index: 2; width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid #fff; background: rgba(43,20,32,.35);
+  color: #fff; font: 700 15px var(--sans); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.3); }
+.elegir.si { background: var(--bordo); border-color: #fff; }
+.foto.elegida { box-shadow: 0 0 0 3px var(--bordo); }
+.portada.nueva { right: auto; left: 6px; top: auto; bottom: 6px; }

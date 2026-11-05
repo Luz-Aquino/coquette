@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611051310">
-  <link rel="stylesheet" href="admin.css?v=202611051310">
+  <link rel="stylesheet" href="styles.css?v=202611051326">
+  <link rel="stylesheet" href="admin.css?v=202611051326">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -69,6 +69,11 @@
       <h2 id="tituloFotos">Fotos</h2>
       <p class="fotos-sub" id="fotosSub"></p>
       <div class="fotos-cambio" id="fotosCambio" hidden></div>
+      <div class="fotos-eleccion" id="fotosEleccion">
+        <p><b>¿Qué fotos se publican?</b> Tocá el círculo ○ de cada foto (de Armony o tuyas) en el orden que querés que aparezcan. La 1 es la portada.</p>
+        <p class="eleccion-estado" id="eleccionEstado"></p>
+        <button class="boton secundario" id="eleccionLimpiar" hidden>Quitar selección</button>
+      </div>
 
       <section>
         <div class="fotos-cabeza">
@@ -90,7 +95,7 @@
             <label class="boton principal fotos-subir"><input type="file" id="fotosInput" accept="image/*" multiple hidden>＋ Subir fotos</label>
           </div>
         </div>
-        <p class="fotos-nota">La primera es la portada. En tu Drive se guardan en buena calidad; la tienda muestra una versión liviana para que cargue rápido.</p>
+        <p class="fotos-nota">En tu Drive se guardan en buena calidad; la tienda muestra una versión liviana para que cargue rápido.</p>
         <p class="fotos-progreso" id="fotosProgreso" hidden></p>
         <div class="fotos-grilla grande" id="fotosMias"></div>
       </section>
@@ -106,8 +111,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611051310"></script>
+  <script src="config.js?v=202611051326"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611051310"></script>
+  <script src="admin.js?v=202611051326"></script>
 </body>
 </html>
