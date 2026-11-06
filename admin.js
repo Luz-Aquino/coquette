@@ -221,7 +221,7 @@
     if (!st.pubs) return;
     const ps = st.pubs;
     const grupos = { Pendiente: p => p.estado === 'Pendiente', avisos: p => p.avisos.length > 0, cambiadas: p => p.fotosCambiaron, mias: p => p.misFotos > 0, sinMias: p => !p.misFotos && p.estado === 'Publicado', Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
-    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Con avisos', cambiadas: '📸 Fotos cambiadas', mias: 'Con mis fotos', sinMias: 'Sin fotos propias', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
+    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Avisos', cambiadas: '📸 Cambiaron', mias: 'Con mis fotos', sinMias: 'Sin mis fotos', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
     $('#filtrosPub').innerHTML = Object.keys(grupos).map(k => `<button class="chip" data-fp="${k}" aria-pressed="${st.filtroPub === k}">${nombres[k]}<span>${ps.filter(grupos[k]).length}</span></button>`).join('');
     const q = st.qPub.toLowerCase().trim();
     const lista = ps.filter(grupos[st.filtroPub]).filter(p => !q || p.nombre.toLowerCase().includes(q));
@@ -232,23 +232,26 @@
       const x = p.tipos[t];
       return `<li><b>${esc(NOMBRE_TIPO[t] || t)}</b> ${rango(x.min, x.max)} <small>costo ${rango(x.costoMin, x.costoMax)}</small></li>`;
     }).join('');
-    const avisos = p.avisos.length ? `<div class="pub-aviso"><b>⚠️ ${p.avisos.length === 1 ? '1 variante con precio dudoso' : p.avisos.length + ' variantes con precio dudoso'}</b> (no se venden hasta que se corrija)
-        <ul>${p.avisos.slice(0, 12).map(a => `<li>${esc(a.variante)} · costo ${fmt(a.costo)} — ${esc(a.motivo)}</li>`).join('')}${p.avisos.length > 12 ? `<li>…y ${p.avisos.length - 12} más</li>` : ''}</ul></div>` : '';
-    const etiqueta = { Pendiente: 'Para revisar', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado;
+    // Avisos cortos: variante (sin "Unidad:") y motivo, máximo 3 a la vista
+    const corta = t => String(t).replace(/[^/|]*:\s*/g, '').replace(/\s*\/\s*/g, ' / ');
+    const avisos = p.avisos.length ? `<div class="pub-aviso">⚠️ <b>${p.avisos.length === 1 ? '1 precio dudoso' : p.avisos.length + ' precios dudosos'}</b> · esas variantes no se venden
+        <ul>${p.avisos.slice(0, 3).map(a => `<li>${esc(corta(a.variante))}: ${esc(a.motivo)}</li>`).join('')}${p.avisos.length > 3 ? `<li>+${p.avisos.length - 3} más</li>` : ''}</ul></div>` : '';
+    const pausa = p.estado === 'Pendiente' && p.avisos.length;
+    const etiqueta = pausa ? '⏸ En pausa' : ({ Pendiente: 'Para revisar', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado);
     const botones = [
-      p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar en la tienda</button>` : '',
-      p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar de la tienda' : 'No publicar'}</button>` : '',
-      `<button class="boton secundario" data-fotos="${esc(p.id)}">✏️ Editar fotos y descripción${p.elegidas ? ` (${p.elegidas} fotos)` : p.misFotos ? ` (${p.misFotos} mías)` : ''}</button>`
+      p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar</button>` : '',
+      p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar' : 'No publicar'}</button>` : '',
+      `<button class="boton secundario" data-fotos="${esc(p.id)}">✏️ Editar${p.elegidas ? ` · ${p.elegidas} fotos` : p.misFotos ? ` · ${p.misFotos} mías` : ''}</button>`
     ].join('');
     return `<article class="pub ${esc(p.estado)}">
         <img class="pub-foto" src="${esc(p.imagen)}" alt="" loading="lazy" referrerpolicy="no-referrer">
         <div class="pub-info">
           <div class="pub-cabeza"><h3>${esc(p.nombre)}</h3><span class="estado pub-${esc(p.estado)}">${esc(etiqueta)}</span></div>
-          <p class="pub-meta">${esc(p.categoria)} · ${p.conStock} de ${p.variantes} variantes con stock${p.detectado ? ' · llegó el ' + new Date(p.detectado).toLocaleDateString('es-AR') : ''}</p>
+          <p class="pub-meta">${esc(p.categoria)} · stock ${p.conStock}/${p.variantes}${p.detectado ? ' · ' + new Date(p.detectado).toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric' }) : ''}</p>
           <ul class="pub-precios">${precios || '<li>Sin precios válidos todavía</li>'}</ul>
-          ${p.fotosCambiaron ? '<div class="pub-aviso fotos-aviso">📸 <b>Armony cambió las fotos originales.</b> Revisalas en "Fotos" por si querés generar nuevas.</div>' : ''}
+          ${p.fotosCambiaron ? '<div class="pub-aviso fotos-aviso">📸 <b>Armony cambió las fotos.</b></div>' : ''}
           ${avisos}
-          <p class="pub-links"><a href="${esc(p.link)}" target="_blank" rel="noopener">Ver publicación original en Armony ↗</a>${p.estado === 'Publicado' ? ` · <a href="${TIENDA_URL}#p-${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Ver en mi tienda ↗</a>` : ''}</p>
+          <p class="pub-links"><a href="${esc(p.link)}" target="_blank" rel="noopener">Armony ↗</a>${p.estado === 'Publicado' ? ` · <a href="${TIENDA_URL}#p-${encodeURIComponent(p.id)}" target="_blank" rel="noopener">Mi tienda ↗</a>` : ''}</p>
           <div class="pub-botones">${botones}</div>
         </div>
       </article>`;
@@ -262,7 +265,7 @@
       st.pubs.find(p => p.id === id).estado = estado;
       const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
       $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
-      tostada(estado === 'Publicado' ? 'Publicado: ya se ve en la tienda.' : 'Listo: no se muestra en la tienda.');
+      tostada(estado === 'Publicado' ? 'Publicado ✔' : 'Oculto de la tienda.');
       pintarPublicaciones();
     } catch (e) { tostada(e.message); btn.disabled = false; }
   }
@@ -290,10 +293,8 @@
   // Cambios de fotos elegidas y descripción: se guardan juntos con "Guardar cambios"
   const leerColores = () => { const o = {}; $$('#coloresLista input[data-armony]').forEach(i => { if (i.value.trim()) o[i.dataset.armony] = i.value.trim(); }); return o; };
   function pintarColores(lista) {
-    $('#coloresLista').innerHTML = (lista || []).map(c => `<label class="color-fila">
-        ${c.foto ? `<img src="${esc(c.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="sin-foto"></span>'}
-        <span class="color-armony"><small>En Armony</small><b>${esc(c.armony)}</b>${c.tipos.length ? `<small>${esc(c.tipos.join(' / '))}</small>` : '<small>sin stock</small>'}</span>
-        <span class="flecha-col">→</span>
+    $('#coloresLista').innerHTML = (lista || []).map(c => `<label class="color-fila" title="${esc(c.tipos.join(' / ') || 'sin stock')}">
+        <span class="color-armony">${esc(c.armony)}${c.tipos.length === 1 && c.tipos[0] === 'Pack x6' ? ' <small>pack</small>' : !c.tipos.length ? ' <small>sin stock</small>' : ''}</span>
         <input data-armony="${esc(c.armony)}" value="${esc(c.mio)}" placeholder="${esc(c.armony)}" maxlength="40" aria-label="Nombre en mi tienda para ${esc(c.armony)}">
       </label>`).join('') || '<p class="fotos-nota">Este producto no tiene colores.</p>';
   }
@@ -546,7 +547,7 @@
       const img = 'https://armonyfabricantes.com.ar/wp-content/uploads/2026/10/WhatsApp-Image-2026-10-09-at-15.04.43-2-600x800.jpeg';
       return Promise.resolve({ productos: [
         { id: '9001', nombre: 'VESTIDO PUCCA', categoria: 'VESTIDOS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Pendiente', detectado: new Date().toISOString(), variantes: 18, conStock: 18, tipos: { 'Unidad': { min: 35000, max: 35000, costoMin: 14000, costoMax: 14000 }, 'Pack x6': { min: 168000, max: 168000, costoMin: 84000, costoMax: 84000 } }, avisos: [] },
-        { id: '9002', nombre: 'VESTIDO CORTO LISBOA LISO', categoria: 'VESTIDOS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Pendiente', detectado: new Date().toISOString(), variantes: 27, conStock: 27, tipos: { 'Unidad': { min: 41000, max: 41000, costoMin: 16400, costoMax: 16400 }, 'Pack x6': { min: 196800, max: 196800, costoMin: 98400, costoMax: 98400 } }, avisos: [{ variante: 'Blanco / 4 / Unidad: x6 Surtidas', costo: 16400, motivo: 'Precio muy distinto al resto (Pack x6: $16400 y lo normal es $98400)' }] },
+        { id: '9002', nombre: 'VESTIDO CORTO LISBOA LISO', categoria: 'VESTIDOS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Pendiente', detectado: new Date().toISOString(), variantes: 27, conStock: 27, tipos: { 'Unidad': { min: 41000, max: 41000, costoMin: 16400, costoMax: 16400 }, 'Pack x6': { min: 196800, max: 196800, costoMin: 98400, costoMax: 98400 } }, avisos: [{ variante: 'Blanco / 4 / Unidad: x6 Surtidas', costo: 16400, motivo: 'Precio raro: $16.400 (normal $98.400)' }] },
         { id: '9003', nombre: 'BLUSA CANDELA LISO', categoria: 'CAMISAS | BLUSAS | BODYS', link: 'https://armonyfabricantes.com.ar/', imagen: img, estado: 'Publicado', detectado: '', variantes: 6, conStock: 4, tipos: { 'Unidad': { min: 22250, max: 22250, costoMin: 8900, costoMax: 8900 } }, avisos: [] }
       ] });
     }

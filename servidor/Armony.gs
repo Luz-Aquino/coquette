@@ -303,15 +303,17 @@ function definirPrecios_(filas) {
     else {
       const g = grupos[id + '|' + tipo] || [];
       const med = g.length >= 3 ? mediana(g) : null;
-      if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio muy distinto al resto (${tipo}${doble[String(f[c('Clave')])] ? ' = 2 promos x3' : ''}: $${costo} y lo normal es $${med})`;
-      else if (tipo === 'Promo x3' && minU[id] && costo < minU[id] * 1.5) motivo = `La promo x3 cuesta casi lo mismo que una unidad ($${costo} vs $${minU[id]})`;
-      else if (tipo === 'Pack x6' && minU[id] && costo < minU[id] * 2.5) motivo = `El pack x6 cuesta casi lo mismo que pocas unidades ($${costo} vs $${minU[id]})`;
+      // Avisos cortos: qué pasa y los dos costos
+      if (med && (costo < med * 0.6 || costo > med * 1.6)) motivo = `Precio raro: ${pesos_(costo)} (normal ${pesos_(med)})`;
+      else if (tipo === 'Promo x3' && minU[id] && costo < minU[id] * 1.5) motivo = `Promo x3 casi igual a 1 unidad: ${pesos_(costo)} / ${pesos_(minU[id])}`;
+      else if (tipo === 'Pack x6' && minU[id] && costo < minU[id] * 2.5) motivo = `Pack x6 muy barato: ${pesos_(costo)} (unidad ${pesos_(minU[id])})`;
     }
     f[c('Aviso')] = motivo;
     if (motivo) { f[c('Tipo venta')] = 'Revisar'; f[c('Precio venta')] = ''; MOTIVOS_REVISAR[String(f[c('Clave')])] = motivo; }
     else f[c('Precio venta')] = precioVenta_(ce(f), tipo === 'Pack x6', tipo === 'Promo x3');
   });
 }
+const pesos_ = n => '$' + String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 let MOTIVOS_REVISAR = {}; // por qué se marcó cada variante (no se escribe en la hoja)
 
 // Avisa UNA vez por variante marcada para revisar (y vuelve a avisar si se corrige y reaparece)

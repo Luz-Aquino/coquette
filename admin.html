@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611061836">
-  <link rel="stylesheet" href="admin.css?v=202611061836">
+  <link rel="stylesheet" href="styles.css?v=202611061939">
+  <link rel="stylesheet" href="admin.css?v=202611061939">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -66,7 +66,7 @@
           <h1>Publicaciones</h1>
           <button class="boton secundario" id="btnRecargarPub">Actualizar</button>
         </div>
-        <p class="pub-ayuda">Los productos nuevos de Armony esperan acá hasta que los publiques. Las variantes con aviso ⚠️ no se venden hasta que Armony corrija el precio.</p>
+        <p class="pub-ayuda">Lo nuevo y lo que tiene avisos ⚠️ queda en pausa hasta que toques <b>Publicar</b>.</p>
         <div class="admin-filtros">
           <nav class="categorias admin-estados" id="filtrosPub" aria-label="Filtrar publicaciones"></nav>
           <input type="search" id="buscarPub" placeholder="Buscar producto" aria-label="Buscar producto">
@@ -83,46 +83,46 @@
       <p class="fotos-sub" id="fotosSub"></p>
       <div class="fotos-cambio" id="fotosCambio" hidden></div>
       <div class="fotos-eleccion" id="fotosEleccion">
-        <p><b>¿Qué fotos se publican?</b> Tocá el círculo ○ de cada foto (de Armony o tuyas) en el orden que querés que aparezcan. La 1 es la portada.</p>
+        <p>Tocá el ○ de cada foto en el orden en que se publica (la 1 es la portada).</p>
         <p class="eleccion-estado" id="eleccionEstado"></p>
         <button class="boton secundario" id="eleccionLimpiar" hidden>Quitar selección</button>
       </div>
-      <section class="colores-seccion">
-        <div class="fotos-cabeza"><h3>Nombres de los colores</h3></div>
-        <p class="fotos-nota">Escribí cómo querés que se llame cada color en tu tienda (por ejemplo, lo que se ve en tus fotos). Si lo dejás vacío, queda el nombre de Armony. En tus mails de venta siempre vas a ver el <b>color original de Armony</b> para pedirlo bien.</p>
-        <div class="colores-lista" id="coloresLista"></div>
-      </section>
-      <section class="desc-seccion">
-        <div class="fotos-cabeza"><h3>Descripción</h3><button type="button" class="link-boton" id="descArmony">Usar la de Armony</button></div>
-        <p class="fotos-nota">Es el texto que ve la clienta al tocar "Descripción" en la ficha. Podés escribir la tuya.</p>
-        <textarea id="descTexto" rows="6" maxlength="3000" placeholder="Ej: Vestido de lino con mangas abullonadas, ideal para el verano…"></textarea>
-        <p class="fotos-nota" id="descEstado"></p>
-      </section>
-
       <section>
         <div class="fotos-cabeza">
-          <h3>Fotos originales de Armony <small id="nArmony"></small></h3>
+          <h3>Fotos de Armony <small id="nArmony"></small></h3>
           <div class="fotos-botones">
-            <button class="boton secundario" id="zipArmony">⬇ Descargar todas (alta calidad)</button>
-            <a id="fotosLink" target="_blank" rel="noopener">Ver publicación ↗</a>
+            <button class="boton secundario" id="zipArmony">⬇ Descargar</button>
+            <a id="fotosLink" target="_blank" rel="noopener">Armony ↗</a>
           </div>
         </div>
-        <p class="fotos-nota">Tocá una foto para verla en grande. Las descargas son en la calidad original, para usarlas en Gemini.</p>
-        <div class="fotos-grilla grande" id="fotosArmony"></div>
+        
+        <div class="fotos-grilla" id="fotosArmony"></div>
       </section>
 
       <section>
         <div class="fotos-cabeza">
           <h3>Mis fotos <small id="nMias"></small></h3>
           <div class="fotos-botones">
-            <button class="boton secundario" id="zipMias" hidden>⬇ Descargar mis fotos</button>
+            <button class="boton secundario" id="zipMias" hidden>⬇ Descargar</button>
             <label class="boton principal fotos-subir"><input type="file" id="fotosInput" accept="image/*" multiple hidden>＋ Subir fotos</label>
           </div>
         </div>
-        <p class="fotos-nota">En tu Drive se guardan en buena calidad; la tienda muestra una versión liviana para que cargue rápido.</p>
+        
         <p class="fotos-progreso" id="fotosProgreso" hidden></p>
-        <div class="fotos-grilla grande" id="fotosMias"></div>
+        <div class="fotos-grilla" id="fotosMias"></div>
       </section>
+      <section class="colores-seccion">
+        <div class="fotos-cabeza"><h3>Nombres de colores</h3></div>
+        <p class="fotos-nota">Vacío = nombre de Armony. En tus mails de venta siempre ves el original.</p>
+        <div class="colores-lista" id="coloresLista"></div>
+      </section>
+      <section class="desc-seccion">
+        <div class="fotos-cabeza"><h3>Descripción</h3><button type="button" class="link-boton" id="descArmony">Usar la de Armony</button></div>
+        
+        <textarea id="descTexto" rows="4" maxlength="3000" placeholder="Ej: Vestido de lino con mangas abullonadas, ideal para el verano…"></textarea>
+        <p class="fotos-nota" id="descEstado"></p>
+      </section>
+
       <div class="guardar-barra" id="guardarBarra">
         <span id="guardarEstado">Sin cambios</span>
         <button class="boton principal" id="btnGuardarPub" disabled>Guardar cambios</button>
@@ -139,8 +139,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611061836"></script>
+  <script src="config.js?v=202611061939"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611061836"></script>
+  <script src="admin.js?v=202611061939"></script>
 </body>
 </html>

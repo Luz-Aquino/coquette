@@ -36,7 +36,7 @@ const TIENDA = {
   AVISO_CARRITO_HORAS: 24       // horas sin comprar antes de mandar el recordatorio
 };
 
-const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido'];
+const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido', 'Avisos aprobados'];
 const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado', 'Selección', 'Descripción propia', 'Colores propios'];
 const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
 const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
@@ -230,9 +230,16 @@ function estadosPublicacion_() {
   const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_PUBLICACION);
   if (!h || h.getLastRow() < 2) return null;
   const m = {};
-  h.getRange(2, 1, h.getLastRow() - 1, 3).getValues().forEach(f => { if (f[0] !== '') m[String(f[0])] = String(f[2]); });
+  // Si un producto publicado tiene avisos que Luz todavía no revisó, queda en pausa (no se ve en la tienda)
+  h.getRange(2, 1, h.getLastRow() - 1, 8).getValues().forEach(f => {
+    if (f[0] === '') return;
+    m[String(f[0])] = enPausa_(f) ? 'Pendiente' : String(f[2]);
+  });
   return m;
 }
+
+// Publicado, pero con avisos distintos a los que Luz aprobó
+function enPausa_(f) { return String(f[2]) === 'Publicado' && String(f[3] || '') !== '' && String(f[3]) !== String(f[7] || ''); }
 
 // Lo llama la sincronización de Armony: agrega los productos nuevos como "Pendiente" y actualiza los avisos
 function registrarPublicaciones_(filas) {
@@ -250,9 +257,9 @@ function registrarPublicaciones_(filas) {
     const primeraVez = !h;
     if (!h) {
       h = ss.insertSheet(TIENDA.HOJA_PUBLICACION);
-      h.getRange(1, 1, 1, COLUMNAS_PUBLICACION.length).setValues([COLUMNAS_PUBLICACION]).setFontWeight('bold');
       h.setFrozenRows(1);
     }
+    h.getRange(1, 1, 1, COLUMNAS_PUBLICACION.length).setValues([COLUMNAS_PUBLICACION]).setFontWeight('bold');
     const n = h.getLastRow() - 1;
     const datos = n > 0 ? h.getRange(2, 1, n, COLUMNAS_PUBLICACION.length).getValues() : [];
     const fila = {};
@@ -263,9 +270,10 @@ function registrarPublicaciones_(filas) {
       if (fila[id] !== undefined) {
         const f = datos[fila[id]];
         f[1] = p.nombre; f[3] = avisos; f[4] = p.link;
+        if (enPausa_(f)) { f[2] = 'Pendiente'; f[6] = ''; } // aviso nuevo: se pausa hasta que Luz lo revise
       } else {
         // La primera vez, lo que ya estaba a la venta queda publicado; lo que aparece después espera aprobación
-        datos.push([id, p.nombre, primeraVez ? 'Publicado' : 'Pendiente', avisos, p.link, ahora, primeraVez ? ahora : '']);
+        datos.push([id, p.nombre, primeraVez && !avisos ? 'Publicado' : 'Pendiente', avisos, p.link, ahora, primeraVez && !avisos ? ahora : '', '']);
       }
     });
     if (datos.length) h.getRange(2, 1, datos.length, COLUMNAS_PUBLICACION.length).setValues(datos);
@@ -858,6 +866,8 @@ function admin_(b) {
       if (i < 0) throw new Error('No encontré ese producto.');
       h.getRange(i + 2, 3).setValue(estado);
       h.getRange(i + 2, 7).setValue(new Date());
+      // Al publicar, Luz aprueba los avisos que tiene hoy (si aparece uno nuevo, se vuelve a pausar)
+      if (estado === 'Publicado') h.getRange(i + 2, 8).setValue(h.getRange(i + 2, 4).getValue());
     });
     limpiarCacheCatalogo();
     return { ok: true };
