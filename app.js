@@ -397,9 +397,14 @@
     const colores = [...new Set(deTipo.map(x => x.color))];
     $('#grpColor').hidden = !colores.some(Boolean);
     $('#pColorSel').textContent = s.color ? nombreLindo(s.color) : '';
+    // Colores que solo vienen en otra forma de compra (ej. solo en Pack x6): se muestran para que la clienta sepa que existen
+    const otros = [...new Set(s.p.variantes.filter(x => x.tipo !== s.tipo && x.stock && x.color && colores.indexOf(x.color) < 0).map(x => x.color))];
     $('#pColores').innerHTML = colores.filter(Boolean).map(c => {
       const hay = deTipo.some(x => x.color === c && x.stock);
       return `<button type="button" class="pastilla" data-color="${esc(c)}" aria-pressed="${c === s.color}" ${hay ? '' : 'disabled aria-label="' + esc(nombreLindo(c)) + ', sin stock"'}><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}</button>`;
+    }).join('') + otros.map(c => {
+      const t = s.p.variantes.find(x => x.color === c && x.stock && x.tipo !== s.tipo).tipo;
+      return `<button type="button" class="pastilla otro-tipo" data-otro-tipo="${esc(t)}" data-color="${esc(c)}" title="Disponible en ${esc(nombreTipo(t))}"><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}<small>solo ${esc(t === 'Pack x6' ? 'pack x6' : nombreTipo(t).toLowerCase())}</small></button>`;
     }).join('');
 
     const deColor = disponibles(s.tipo, s.color);
@@ -1049,7 +1054,9 @@
   $('#limpiarBusqueda').addEventListener('click', () => { st.q = ''; $('#q').value = ''; st.filtro = 'todo'; st.color = null; st.talle = null; pintarCategorias(); pintarGrilla(); });
 
   $('#pTipos').addEventListener('click', e => { const b = e.target.closest('[data-tipo]'); if (!b) return; st.sel.tipo = b.dataset.tipo; ajustarSeleccion(); pintarSeleccion(); });
-  $('#pColores').addEventListener('click', e => { const b = e.target.closest('[data-color]'); if (!b || b.disabled) return; st.sel.color = b.dataset.color; ajustarSeleccion(); pintarSeleccion(); });
+  $('#pColores').addEventListener('click', e => {
+    const ot = e.target.closest('[data-otro-tipo]');
+    if (ot) { st.sel.tipo = ot.dataset.otroTipo; st.sel.color = ot.dataset.color; st.sel.talle = null; ajustarSeleccion(); pintarSeleccion(); tostada(`Ese color viene en ${nombreTipo(ot.dataset.otroTipo)}`); e.stopImmediatePropagation(); return; } const b = e.target.closest('[data-color]'); if (!b || b.disabled) return; st.sel.color = b.dataset.color; ajustarSeleccion(); pintarSeleccion(); });
   $('#pTalles').addEventListener('click', e => { const b = e.target.closest('[data-talle]'); if (!b || b.disabled) return; st.sel.talle = b.dataset.talle; pintarSeleccion(); });
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });

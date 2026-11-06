@@ -37,7 +37,7 @@ const TIENDA = {
 };
 
 const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido'];
-const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado', 'Selección', 'Descripción propia'];
+const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado', 'Selección', 'Descripción propia', 'Colores propios'];
 const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
 const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 
@@ -207,6 +207,7 @@ function armarCatalogo_(vars) {
     const f = mias[id];
     if (!f) return;
     if (f.descripcion) prods[id].descripcion = f.descripcion.slice(0, 3000); // descripción escrita por Luz
+    if (f.colores) prods[id].variantes.forEach(v => { const a = f.colores[v.color]; if (a) v.color = a; }); // nombres de color de Luz
     // 1) Si Luz eligió fotos (de Armony y/o propias), se publican esas en ese orden
     const elegidas = (f.seleccion || []).map(r => {
       if (/^drive:/.test(r)) { const d = r.slice(6); return f.fotos.some(x => x.id === d) ? urlDrive_(d, 'w900') : ''; }
@@ -306,7 +307,7 @@ function misFotosTodas_() {
     if (f[0] === '') return;
     m[String(f[0])] = { fila: i + 2, fotos: leerJson_(f[2], []), armony: leerJson_(f[3], []),
       cambio: f[4] instanceof Date ? f[4].toISOString() : String(f[4] || ''), seleccion: leerJson_(f[6], []),
-      descripcion: String(f[7] || '') };
+      descripcion: String(f[7] || ''), colores: leerJson_(f[8], {}) };
   });
   return m;
 }
@@ -368,7 +369,11 @@ function adminFotos_(b) {
       mias: m.fotos.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })),
       cambio: m.cambio, armonyAntes: m.cambio ? m.armony : [],
       seleccion: (m.seleccion || []).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0),
-      descripcionArmony: v0.descripcion, descripcionPropia: m.descripcion || '' };
+      descripcionArmony: v0.descripcion, descripcionPropia: m.descripcion || '',
+      colores: [...new Set(vars.filter(v => v.pid === pid && v.color).map(v => v.color))].map(c => ({
+        armony: c, mio: (m.colores || {})[c] || '',
+        tipos: [...new Set(vars.filter(v => v.pid === pid && v.color === c && v.precio && v.stock !== 'Agotado').map(v => v.tipo))],
+        foto: (vars.find(v => v.pid === pid && v.color === c && v.imagen) || {}).imagen || '' })) };
   }
   if (b.op === 'subirFoto') {
     const datos = String(b.datos || '').replace(/^data:image\/\w+;base64,/, '');
@@ -414,6 +419,11 @@ function adminFotos_(b) {
       guardarSeleccion_(pid, v0.producto, sel, actual);
       const h = hojaFotos_(), fila = misFotosTodas_()[pid].fila;
       h.getRange(fila, 8).setValue(desc);
+      if (b.colores && typeof b.colores === 'object') {
+        const validos = {};
+        vars.filter(v => v.pid === pid && v.color).forEach(v => { const a = String(b.colores[v.color] || '').trim().slice(0, 40); if (a && a !== v.color) validos[v.color] = a; });
+        h.getRange(fila, 9).setValue(JSON.stringify(validos));
+      }
     });
     limpiarCacheCatalogo();
     return { ok: true, seleccion: sel, descripcionPropia: desc };
@@ -547,13 +557,17 @@ function crearPedido_(b) {
   if (!pedidos.length) throw new Error('Tu carrito está vacío.');
   const vars = {};
   leerVariantes_().forEach(v => { vars[v.clave] = v; });
+  const alias = misFotosTodas_();
   const lineas = pedidos.map(x => {
     const v = vars[String(x.id)];
-    const det = v ? [v.tipo + (v.dosPromos ? ' (comprar 2× Promo x3 a Armony)' : ''), v.color, v.talle].filter(Boolean).join(' · ') : '';
+    const colorMio = v && alias[v.pid] && alias[v.pid].colores && alias[v.pid].colores[v.color];
+    // lo que ve la clienta (con el nombre de color de Luz) y lo que hay que pedirle a Armony (original)
+    const det = v ? [v.tipo, colorMio || v.color, v.talle].filter(Boolean).join(' · ') : '';
+    const armony = v ? [v.tipo + (v.dosPromos ? ' (comprar 2× Promo x3)' : ''), v.color, v.talle].filter(Boolean).join(' · ') : '';
     if (!v || !v.precio) throw new Error('Un producto del carrito ya no está disponible. Quitalo y probá de nuevo.');
     if (v.stock === 'Agotado') throw new Error(`Se agotó: ${v.producto} (${det}). Quitalo del carrito.`);
     return {
-      id: v.clave, nombre: v.producto, detalle: det,
+      id: v.clave, nombre: v.producto, detalle: det, armony,
       cantidad: Math.min(20, Math.max(1, Math.floor(Number(x.cantidad)))),
       precio: v.precio, imagen: v.imagen, link: v.link
     };
@@ -874,7 +888,7 @@ function mailPagoCliente_(d) {
 
 function mailVentaAdmin_(d) {
   const items = itemsDe_(d);
-  const compra = items.map(l => `<li>${l.cantidad}× ${esc_(l.nombre)} – ${esc_(l.detalle)} · <a href="${esc_(l.link)}">ver en Armony</a></li>`).join('');
+  const compra = items.map(l => `<li>${l.cantidad}× ${esc_(l.nombre)} – <b>${esc_(l.armony || l.detalle)}</b>${l.armony && l.armony !== l.detalle ? ` <small>(la clienta lo vio como: ${esc_(l.detalle)})</small>` : ''} · <a href="${esc_(l.link)}">ver en Armony</a></li>`).join('');
   MailApp.sendEmail({
     to: TIENDA.ADMINS.join(','), name: TIENDA.NOMBRE + ' (tienda)',
     subject: `🛍️ Nueva venta ${d['Pedido']} · $${fmt_(d['Total'])}`,

@@ -170,3 +170,14 @@ button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; he
 .guardar-barra .boton { min-height: 44px; }
 .guardar-barra .boton:disabled { opacity: .5; cursor: default; }
 .fotos-dlg .modal-contenido { padding-bottom: 0; }
+
+/* Nombres de colores */
+.colores-lista { display: grid; gap: 8px; }
+.color-fila { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto minmax(0, 1.2fr); align-items: center; gap: 10px; padding: 8px; border-radius: 12px; background: #fff; border: 1px solid #F6E1E6; }
+.color-fila img, .color-fila .sin-foto { width: 44px; height: 58px; object-fit: cover; border-radius: 8px; background: var(--rosa); }
+.color-armony { display: grid; font-size: 14px; }
+.color-armony small { color: var(--gris); font-size: 11px; }
+.flecha-col { color: var(--gris); }
+.color-fila input { height: 42px; padding: 0 12px; border-radius: 10px; border: var(--borde); font-size: 15px; min-width: 0; }
+.color-fila input:focus { outline: none; border-color: var(--bordo); }
+@media (max-width: 520px) { .color-fila { grid-template-columns: 44px minmax(0, 1fr); } .flecha-col { display: none; } .color-fila input { grid-column: 1 / -1; } }

@@ -288,8 +288,19 @@
     $('#eleccionLimpiar').hidden = !n;
   }
   // Cambios de fotos elegidas y descripción: se guardan juntos con "Guardar cambios"
+  const leerColores = () => { const o = {}; $$('#coloresLista input[data-armony]').forEach(i => { if (i.value.trim()) o[i.dataset.armony] = i.value.trim(); }); return o; };
+  function pintarColores(lista) {
+    $('#coloresLista').innerHTML = (lista || []).map(c => `<label class="color-fila">
+        ${c.foto ? `<img src="${esc(c.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<span class="sin-foto"></span>'}
+        <span class="color-armony"><small>En Armony</small><b>${esc(c.armony)}</b>${c.tipos.length ? `<small>${esc(c.tipos.join(' / '))}</small>` : '<small>sin stock</small>'}</span>
+        <span class="flecha-col">→</span>
+        <input data-armony="${esc(c.armony)}" value="${esc(c.mio)}" placeholder="${esc(c.armony)}" maxlength="40" aria-label="Nombre en mi tienda para ${esc(c.armony)}">
+      </label>`).join('') || '<p class="fotos-nota">Este producto no tiene colores.</p>';
+  }
+  $('#coloresLista').addEventListener('input', () => marcarCambios());
   function marcarCambios() {
-    const sucio = JSON.stringify(fs.sel) !== JSON.stringify(fs.selGuardada) || $('#descTexto').value.trim() !== fs.descGuardada.trim();
+    const sucio = JSON.stringify(fs.sel) !== JSON.stringify(fs.selGuardada) || $('#descTexto').value.trim() !== fs.descGuardada.trim()
+      || JSON.stringify(leerColores()) !== JSON.stringify(fs.coloresGuardados || {});
     fs.sucio = sucio;
     $('#btnGuardarPub').disabled = !sucio;
     $('#guardarEstado').textContent = sucio ? '● Tenés cambios sin guardar' : 'Todo guardado ✔';
@@ -305,8 +316,9 @@
   $('#btnGuardarPub').addEventListener('click', async e => {
     const b = e.currentTarget; b.disabled = true; b.textContent = 'Guardando…';
     try {
-      const r = await post({ action: 'admin', op: 'guardarPublicacion', idToken: st.token, pid: fs.pid, sel: fs.sel, descripcion: $('#descTexto').value });
+      const r = await post({ action: 'admin', op: 'guardarPublicacion', idToken: st.token, pid: fs.pid, sel: fs.sel, descripcion: $('#descTexto').value, colores: leerColores() });
       if (r.error) throw new Error(r.error);
+      fs.coloresGuardados = leerColores();
       fs.sel = r.seleccion; fs.selGuardada = r.seleccion.slice(); fs.descGuardada = $('#descTexto').value;
       fs.cambiado = true; fs.avisoCerrar = false;
       tostada('Cambios guardados: ya se ven en la tienda.');
@@ -331,6 +343,7 @@
       Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony, sel: r.seleccion || [], nuevas: [],
         selGuardada: (r.seleccion || []).slice(), descArmony: r.descripcionArmony || '', avisoCerrar: false });
       fs.descGuardada = r.descripcionPropia || fs.descArmony;
+      pintarColores(r.colores); fs.coloresGuardados = leerColores();
       $('#descTexto').value = fs.descGuardada; pintarDescEstado(); marcarCambios();
       $('#fotosLink').href = r.link;
       $('#nArmony').textContent = `(${r.armony.length})`;
@@ -526,7 +539,7 @@
     if (b.op === 'reenviarCodigo') return Promise.resolve({ ok: true });
     if (b.op === 'seleccion' || b.op === 'guardarPublicacion') return Promise.resolve({ ok: true, seleccion: b.sel, descripcionPropia: b.descripcion });
     if (b.op === 'zipFotos') return Promise.resolve({ error: 'En la demostración no se descargan fotos.' });
-    if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'], descripcionArmony: 'Vestido corto de fibrana con breteles. Talle único.', descripcionPropia: '' });
+    if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'], descripcionArmony: 'Vestido corto de fibrana con breteles. Talle único.', descripcionPropia: '', colores: [{ armony: 'Azul Marino', mio: '', tipos: ['Unidad', 'Pack x6'], foto: 'https://armonyfabricantes.com.ar/a.jpg' }, { armony: 'terracota', mio: 'Rojo', tipos: ['Pack x6'], foto: '' }] });
     if (b.op === 'subirFoto') { demo.mias = (demo.mias || []).concat([{ id: 'd' + Date.now(), url: b.datos }]); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'ordenarFotos') { demo.mias = b.ids.map(id => (demo.mias || []).find(x => x.id === id)).filter(Boolean); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'publicaciones') {

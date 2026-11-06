@@ -1028,3 +1028,6 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .galeria { background: linear-gradient(180deg, #F8E6EA, #F3DDE2); }
 .galeria-fotos img { object-fit: contain; background: transparent; }
 @media (min-width: 860px) { .galeria-fotos img { height: min(90vh, 100%); max-height: 90vh; } }
+
+.pastilla.otro-tipo { opacity: .75; border-style: dashed; }
+.pastilla.otro-tipo small { margin-left: 6px; font-size: 11px; color: var(--gris); }
