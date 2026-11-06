@@ -210,8 +210,9 @@
       const r = await post({ action: 'admin', op: 'publicaciones', idToken: st.token });
       if (r.error) throw new Error(r.error);
       st.pubs = r.productos;
-      const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
-      $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
+      contarPendientes();
+      // La primera vez: si no hay nuevos pero sí avisos sin revisar, abre esa vista
+      if (!st.vioPubs) { st.vioPubs = true; const sinRev = st.pubs.some(p => p.avisos.length && !p.revisado), nuevos = st.pubs.some(p => p.estado === 'Pendiente' && !(p.avisos.length && !p.revisado)); if (!nuevos && sinRev) st.filtroPub = 'avisos'; }
       pintarPublicaciones();
     } catch (e) { if (!silencioso) $('#listaPub').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
   }
@@ -220,12 +221,13 @@
   function pintarPublicaciones() {
     if (!st.pubs) return;
     const ps = st.pubs;
-    const grupos = { Pendiente: p => p.estado === 'Pendiente', avisos: p => p.avisos.length > 0, cambiadas: p => p.fotosCambiaron, mias: p => p.misFotos > 0, sinMias: p => !p.misFotos && p.estado === 'Publicado', Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
-    const nombres = { Pendiente: 'Para revisar', avisos: '⚠️ Avisos', cambiadas: '📸 Cambiaron', mias: 'Con mis fotos', sinMias: 'Sin mis fotos', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
+    const conAviso = p => p.avisos.length > 0 && !p.revisado && p.estado !== 'Oculto';
+    const grupos = { Pendiente: p => p.estado === 'Pendiente' && !conAviso(p), avisos: p => conAviso(p), cambiadas: p => p.fotosCambiaron, mias: p => p.misFotos > 0, sinMias: p => !p.misFotos && p.estado === 'Publicado', Publicado: p => p.estado === 'Publicado', Oculto: p => p.estado === 'Oculto', todos: () => true };
+    const nombres = { Pendiente: '🆕 Nuevos', avisos: '⚠️ Con avisos', cambiadas: '📸 Cambiaron', mias: 'Con mis fotos', sinMias: 'Sin mis fotos', Publicado: 'Publicados', Oculto: 'Ocultos', todos: 'Todos' };
     $('#filtrosPub').innerHTML = Object.keys(grupos).map(k => `<button class="chip" data-fp="${k}" aria-pressed="${st.filtroPub === k}">${nombres[k]}<span>${ps.filter(grupos[k]).length}</span></button>`).join('');
     const q = st.qPub.toLowerCase().trim();
     const lista = ps.filter(grupos[st.filtroPub]).filter(p => !q || p.nombre.toLowerCase().includes(q));
-    $('#listaPub').innerHTML = lista.length ? lista.map(pubHtml).join('') : `<div class="vacio"><p>${st.filtroPub === 'Pendiente' ? 'No hay productos esperando. Cuando Armony publique algo nuevo, aparece acá.' : 'No hay productos en esta vista.'}</p></div>`;
+    $('#listaPub').innerHTML = lista.length ? lista.map(pubHtml).join('') : `<div class="vacio"><p>${st.filtroPub === 'Pendiente' ? 'No hay productos nuevos.' : st.filtroPub === 'avisos' ? 'No hay avisos sin revisar ✔' : 'No hay productos en esta vista.'}</p></div>`;
   }
   function pubHtml(p) {
     const precios = Object.keys(p.tipos).sort((a, b) => ['Unidad', 'Promo x3', 'Pack x6'].indexOf(a) - ['Unidad', 'Promo x3', 'Pack x6'].indexOf(b)).map(t => {
@@ -234,10 +236,10 @@
     }).join('');
     // Avisos cortos: variante (sin "Unidad:") y motivo, máximo 3 a la vista
     const corta = t => String(t).replace(/[^/|]*:\s*/g, '').replace(/\s*\/\s*/g, ' / ');
-    const avisos = p.avisos.length ? `<div class="pub-aviso">⚠️ <b>${p.avisos.length === 1 ? '1 precio dudoso' : p.avisos.length + ' precios dudosos'}</b> · esas variantes no se venden
+    const avisos = p.avisos.length && !p.revisado ? `<div class="pub-aviso">⚠️ <b>${p.avisos.length === 1 ? '1 precio dudoso' : p.avisos.length + ' precios dudosos'}</b> · esas variantes no se venden
         <ul>${p.avisos.slice(0, 3).map(a => `<li>${esc(corta(a.variante))}: ${esc(a.motivo)}</li>`).join('')}${p.avisos.length > 3 ? `<li>+${p.avisos.length - 3} más</li>` : ''}</ul></div>` : '';
-    const pausa = p.estado === 'Pendiente' && p.avisos.length;
-    const etiqueta = pausa ? '⏸ En pausa' : ({ Pendiente: 'Para revisar', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado);
+    const pausa = p.estado === 'Pendiente' && p.avisos.length && !p.revisado;
+    const etiqueta = pausa ? '⏸ En pausa' : ({ Pendiente: 'Nuevo', Publicado: 'Publicado', Oculto: 'Oculto' }[p.estado] || p.estado);
     const botones = [
       p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar</button>` : '',
       p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar' : 'No publicar'}</button>` : '',
@@ -256,20 +258,24 @@
         </div>
       </article>`;
   }
+  // Se ve el cambio al instante; si el servidor falla, vuelve atrás
   async function cambiarPublicacion(btn) {
     const id = btn.dataset.pub, estado = btn.dataset.estado;
-    btn.disabled = true;
+    const p = st.pubs.find(x => x.id === id), antes = { estado: p.estado, revisado: p.revisado };
+    p.estado = estado; if (estado === 'Publicado') p.revisado = true;
+    contarPendientes(); pintarPublicaciones();
+    tostada(estado === 'Publicado' ? 'Publicado ✔' : 'Oculto de la tienda.');
     try {
       const r = await post({ action: 'admin', op: 'publicar', idToken: st.token, pid: id, estado });
       if (r.error) throw new Error(r.error);
-      st.pubs.find(p => p.id === id).estado = estado;
-      const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
-      $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
-      tostada(estado === 'Publicado' ? 'Publicado ✔' : 'Oculto de la tienda.');
-      pintarPublicaciones();
-    } catch (e) { tostada(e.message); btn.disabled = false; }
+    } catch (e) { Object.assign(p, antes); contarPendientes(); pintarPublicaciones(); tostada('No se pudo: ' + e.message); }
+  }
+  function contarPendientes() {
+    const n = st.pubs.filter(p => p.estado === 'Pendiente').length;
+    $('#nPendientes').hidden = !n; $('#nPendientes').textContent = n;
   }
   /* ---------- Fotos propias ---------- */
+  const cacheFotos = {};
   const fs = { pid: null, mias: [], armony: [], armonyWeb: [], visor: [], i: 0, sel: [] };
   const dlgF = $('#dlgFotos');
   function cerrarEditor() {
@@ -278,11 +284,11 @@
   }
   dlgF.addEventListener('click', e => { if (e.target === dlgF || (e.target.closest('[data-cerrar]') && !e.target.closest('.visor'))) cerrarEditor(); });
   dlgF.addEventListener('cancel', e => { if (!$('#visor').hidden) return; if (fs.sucio && !fs.avisoCerrar) { e.preventDefault(); cerrarEditor(); } });
-  dlgF.addEventListener('close', () => { $('#visor').hidden = true; if (fs.cambiado) cargarPublicaciones(true); fs.cambiado = false; });
+  dlgF.addEventListener('close', () => { $('#visor').hidden = true; if (fs.cambiado) { delete cacheFotos[fs.pid]; cargarPublicaciones(true); } fs.cambiado = false; });
   const circulo = ref => { const n = fs.sel.indexOf(ref); return `<button type="button" class="elegir ${n >= 0 ? 'si' : ''}" data-elegir="${esc(ref)}" aria-label="${n >= 0 ? 'Quitar de la publicación' : 'Elegir para publicar'}">${n >= 0 ? n + 1 : ''}</button>`; };
   const fotoHtml = (mini, i, tipo, ref) => `<div class="foto ${fs.sel.indexOf(ref) >= 0 ? 'elegida' : ''}"><button type="button" class="foto-ver" data-ver="${tipo}" data-i="${i}"><img src="${esc(mini)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>${circulo(ref)}</div>`;
   function pintarArmony() {
-    $('#fotosArmony').innerHTML = fs.armonyWeb.map((u, i) => fotoHtml(u, i, 'armony', fs.armony[i])).join('') || '<p class="fotos-nota">Armony no tiene fotos en esta publicación.</p>';
+    $('#fotosArmony').innerHTML = (fs.armonyMini && fs.armonyMini.length ? fs.armonyMini : fs.armonyWeb).map((u, i) => fotoHtml(u, i, 'armony', fs.armony[i])).join('') || '<p class="fotos-nota">Armony no tiene fotos en esta publicación.</p>';
     (fs.nuevas || []).forEach(u => { const k = fs.armony.indexOf(u); const el = $$('#fotosArmony .foto')[k]; if (el) el.insertAdjacentHTML('beforeend', '<span class="portada nueva">★ Nueva</span>'); });
   }
   function pintarEleccion() {
@@ -314,17 +320,26 @@
     $('#descEstado').textContent = !t ? 'Vacía: la ficha no muestra descripción.' : t === fs.descArmony.trim() ? 'Es la descripción de Armony.' : 'Es tu descripción.';
   }
   $('#descArmony').addEventListener('click', () => { $('#descTexto').value = fs.descArmony; pintarDescEstado(); marcarCambios(); });
-  $('#btnGuardarPub').addEventListener('click', async e => {
-    const b = e.currentTarget; b.disabled = true; b.textContent = 'Guardando…';
+  $('#btnGuardarPub').addEventListener('click', async () => {
+    const pid = fs.pid, datos = { sel: fs.sel.slice(), descripcion: $('#descTexto').value, colores: leerColores() };
+    // Se cierra enseguida; el guardado sigue por detrás
+    const recargar = fs.cambiado; fs.cambiado = false; if (recargar) delete cacheFotos[pid];
+    fs.sucio = false; fs.avisoCerrar = false; dlgF.close();
+    const p = (st.pubs || []).find(x => x.id === pid);
+    if (p) { p.elegidas = datos.sel.length; pintarPublicaciones(); }
+    tostada('Guardando…');
     try {
-      const r = await post({ action: 'admin', op: 'guardarPublicacion', idToken: st.token, pid: fs.pid, sel: fs.sel, descripcion: $('#descTexto').value, colores: leerColores() });
+      const r = await post(Object.assign({ action: 'admin', op: 'guardarPublicacion', idToken: st.token, pid }, datos));
       if (r.error) throw new Error(r.error);
-      fs.coloresGuardados = leerColores();
-      fs.sel = r.seleccion; fs.selGuardada = r.seleccion.slice(); fs.descGuardada = $('#descTexto').value;
-      fs.cambiado = true; fs.avisoCerrar = false;
-      tostada('Cambios guardados: ya se ven en la tienda.');
-    } catch (err) { tostada(err.message); }
-    b.textContent = 'Guardar cambios'; pintarArmony(); pintarMias(); pintarEleccion(); marcarCambios();
+      if (cacheFotos[pid]) Object.assign(cacheFotos[pid], { seleccion: r.seleccion, descripcionPropia: r.descripcionPropia,
+        colores: (cacheFotos[pid].colores || []).map(c => Object.assign({}, c, { mio: datos.colores[c.armony] || '' })) });
+      tostada('Guardado ✔ Ya se ve en la tienda.');
+      if (recargar) cargarPublicaciones(true);
+    } catch (err) {
+      tostada('No se guardó: ' + err.message);
+      // Vuelve a abrir con los cambios para que no se pierdan
+      if (fs.pid === pid) { dlgF.showModal(); marcarCambios(); }
+    }
   });
   dlgF.addEventListener('click', e => {
     const b = e.target.closest('[data-elegir]'); if (!b) return;
@@ -332,32 +347,39 @@
     if (k >= 0) fs.sel.splice(k, 1); else fs.sel.push(ref);
     pintarArmony(); pintarMias(); pintarEleccion(); guardarSeleccion();
   });
+  // Se abre al instante con lo último que se vio de ese producto y se actualiza por detrás
+  function aplicarFotos(r) {
+    Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony, armonyMini: r.armonyMini || r.armonyWeb || r.armony, sel: (r.seleccion || []).slice(), nuevas: [],
+      selGuardada: (r.seleccion || []).slice(), descArmony: r.descripcionArmony || '', avisoCerrar: false });
+    fs.descGuardada = r.descripcionPropia || fs.descArmony;
+    pintarColores(r.colores); fs.coloresGuardados = leerColores();
+    $('#descTexto').value = fs.descGuardada; pintarDescEstado(); marcarCambios();
+    $('#fotosLink').href = r.link;
+    $('#nArmony').textContent = `(${r.armony.length})`;
+    $('#fotosCambio').hidden = true;
+    pintarArmony();
+    if (r.cambio) {
+      const nuevas = r.armony.filter(u => r.armonyAntes.indexOf(u) < 0);
+      $('#fotosCambio').hidden = false;
+      $('#fotosCambio').innerHTML = `<b>📸 Armony cambió las fotos el ${new Date(r.cambio).toLocaleDateString('es-AR')}.</b> ${nuevas.length ? `${nuevas.length} nueva(s), marcadas con ★.` : 'Quitaron fotos.'}
+          <button class="boton secundario" id="fotosRevisadas">Ya lo revisé</button>`;
+      fs.nuevas = nuevas; pintarArmony();
+    }
+    pintarMias(); pintarEleccion();
+  }
   async function abrirFotos(pid) {
-    Object.assign(fs, { pid, mias: [], armony: [], armonyWeb: [] });
-    $('#fotosMias').innerHTML = ''; $('#fotosArmony').innerHTML = '<p class="fotos-nota">Cargando fotos…</p>'; $('#fotosCambio').hidden = true;
+    Object.assign(fs, { pid, mias: [], armony: [], armonyWeb: [], armonyMini: [], sucio: false });
     const p = (st.pubs || []).find(x => x.id === pid);
     $('#tituloFotos').textContent = p ? p.nombre : 'Fotos'; $('#fotosSub').textContent = '';
+    if (cacheFotos[pid]) aplicarFotos(cacheFotos[pid]);
+    else { $('#fotosMias').innerHTML = ''; $('#coloresLista').innerHTML = ''; $('#descTexto').value = ''; $('#fotosArmony').innerHTML = '<p class="fotos-nota">Cargando fotos…</p>'; $('#fotosCambio').hidden = true; }
     dlgF.showModal();
     try {
       const r = await post({ action: 'admin', op: 'fotos', idToken: st.token, pid });
       if (r.error) throw new Error(r.error);
-      Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony, sel: r.seleccion || [], nuevas: [],
-        selGuardada: (r.seleccion || []).slice(), descArmony: r.descripcionArmony || '', avisoCerrar: false });
-      fs.descGuardada = r.descripcionPropia || fs.descArmony;
-      pintarColores(r.colores); fs.coloresGuardados = leerColores();
-      $('#descTexto').value = fs.descGuardada; pintarDescEstado(); marcarCambios();
-      $('#fotosLink').href = r.link;
-      $('#nArmony').textContent = `(${r.armony.length})`;
-      pintarArmony();
-      if (r.cambio) {
-        const nuevas = r.armony.filter(u => r.armonyAntes.indexOf(u) < 0);
-        $('#fotosCambio').hidden = false;
-        $('#fotosCambio').innerHTML = `<b>📸 Armony cambió las fotos el ${new Date(r.cambio).toLocaleDateString('es-AR')}.</b> ${nuevas.length ? `Hay ${nuevas.length} foto(s) nueva(s): están marcadas con ★ abajo.` : 'Quitaron fotos.'}
-          <button class="boton secundario" id="fotosRevisadas">Ya lo revisé</button>`;
-        fs.nuevas = nuevas; pintarArmony();
-      }
-      pintarMias(); pintarEleccion();
-    } catch (e) { $('#fotosArmony').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
+      cacheFotos[pid] = r;
+      if (fs.pid === pid && !fs.sucio) aplicarFotos(r);
+    } catch (e) { if (!cacheFotos[pid]) $('#fotosArmony').innerHTML = `<p class="error">${esc(e.message)}</p>`; }
   }
   function pintarMias() {
     $('#nMias').textContent = fs.mias.length ? `(${fs.mias.length})` : '';
@@ -373,7 +395,7 @@
   }
   // Visor en grande
   function abrirVisor(tipo, i) {
-    fs.visor = tipo === 'mias' ? fs.mias.map(f => ({ ver: f.url, alta: f.url })) : fs.armony.map((u, k) => ({ ver: u, alta: u }));
+    fs.visor = tipo === 'mias' ? fs.mias.map(f => ({ ver: String(f.url).replace(/=s0$/, '=w1200'), alta: f.url })) : fs.armony.map((u, k) => ({ ver: fs.armonyWeb[k] || u, alta: u }));
     fs.i = i; pintarVisor(); $('#visor').hidden = false;
   }
   function pintarVisor() {

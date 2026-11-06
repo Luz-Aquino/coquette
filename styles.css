@@ -1031,3 +1031,11 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 
 .pastilla.otro-tipo { opacity: .75; border-style: dashed; }
 .pastilla.otro-tipo small { margin-left: 6px; font-size: 11px; color: var(--gris); }
+/* Opción que no combina con lo elegido: gris, pero se puede tocar */
+.pastilla.no-combina { color: #b8a6ad; background: #faf5f6; border-style: dashed; }
+.pastilla.no-combina i { opacity: .45; }
+/* Falta elegir: se marca en rojo */
+.opcion.falta { border-radius: 12px; outline: 2px solid #D6455D; outline-offset: 6px; animation: sacude .4s ease; }
+.opcion.falta .opcion-titulo { color: #C0263F; }
+.opcion.falta .opcion-titulo::after { content: ' ← elegí una opción'; font-weight: 600; font-size: 13px; }
+@keyframes sacude { 0%,100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }

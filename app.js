@@ -62,6 +62,8 @@
 
   /* ---------- Producto ---------- */
   // Tipos de venta del proveedor: Unidad, Promo x3 (3 prendas) y Pack x6 (6 prendas)
+  // Foto chica (~330 px) para grillas y miniaturas; si no hay, la liviana
+  const mini = (p, i = 0) => (p.minis && p.minis[i]) || p.imagenes[i] || '';
   const prendasDe = t => t === 'Pack x6' ? 6 : t === 'Promo x3' ? 3 : 1;
   const ordenTipo = t => prendasDe(t);
   const nombreTipo = t => t === 'Pack x6' ? 'Pack x6 prendas' : t === 'Promo x3' ? 'Promo x3 prendas' : 'Por unidad';
@@ -137,7 +139,7 @@
     const prenda = (p, i, copia) => `<a class="prenda" href="#p-${esc(p.id)}" style="--tono:${TONOS[i % TONOS.length]};--d:${(i % 5) * 0.12}s" ${copia ? 'aria-hidden="true" tabindex="-1"' : ''}>
         <span class="prenda-colgada">
           <span class="colgante" aria-hidden="true"><svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M50 2L9 40M50 2L91 40"/></svg><i class="argolla"></i><i class="clavo izq"></i><i class="clavo der"></i></span>
-          <span class="arco"><img src="${esc(p.imagenes[0])}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
+          <span class="arco"><img src="${esc(mini(p))}" alt="${copia ? '' : esc(p._nombre)}" referrerpolicy="no-referrer" decoding="async" draggable="false"></span>
         </span>
         <span class="prenda-nombre">${esc(p._nombre)}</span>
         <span class="prenda-precio">${p._res.soloPack ? 'Pack x6 · ' : 'desde '}${fmt(p._res.desde)}</span></a>`;
@@ -308,8 +310,8 @@
     const mas = r.colores.length > 5 ? `<small>+${r.colores.length - 5}</small>` : '';
     return `<a class="tarjeta" href="#p-${esc(p.id)}">
       <div class="tarjeta-foto">
-        ${fotos[0] ? `<img src="${esc(fotos[0])}" alt="${esc(p._nombre)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
-        ${fotos[1] ? `<img class="segunda" src="${esc(fotos[1])}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
+        ${fotos[0] ? `<img src="${esc(mini(p, 0))}" ${mini(p, 0) !== fotos[0] ? `srcset="${esc(mini(p, 0))} 330w, ${esc(fotos[0])} 700w" sizes="(min-width: 1100px) 260px, (min-width: 700px) 30vw, 48vw"` : ''} alt="${esc(p._nombre)}" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
+        ${fotos[1] ? `<img class="segunda" src="${esc(mini(p, 1))}" ${mini(p, 1) !== fotos[1] ? `srcset="${esc(mini(p, 1))} 330w, ${esc(fotos[1])} 700w" sizes="(min-width: 1100px) 260px, (min-width: 700px) 30vw, 48vw"` : ''} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">` : ''}
         <span class="etiquetas">${p._nuevo ? '<span class="etiqueta nuevo">Nuevo</span>' : ''}${p._ultimas ? '<span class="etiqueta ultimas">Últimas unidades</span>' : ''}${r.pack ? '<span class="etiqueta">También por pack</span>' : ''}</span>
         ${corazon(p)}
       </div>
@@ -359,27 +361,31 @@
     lista = lista.slice(0, 8);
     $('#pRelacionados').hidden = !lista.length;
     $('#pRelLista').innerHTML = lista.map(x => `<a class="rel" href="#p-${esc(x.id)}">
-        <img src="${esc(x.imagenes[0] || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <img src="${esc(mini(x))}" alt="" loading="lazy" referrerpolicy="no-referrer">
         <span>${esc(x._nombre)}</span><b>${fmt(x._res.desde)}</b></a>`).join('');
     $('#pRelLista').scrollLeft = 0;
   }
 
   const disponibles = (tipo, color) => st.sel.p.variantes.filter(v => v.tipo === tipo && (color == null || v.color === color));
+  // ¿Hay stock de esta combinación? (null = cualquiera)
+  const hayStock = (tipo, color, talle) => st.sel.p.variantes.some(v => v.stock && v.tipo === tipo && (color == null || v.color === color) && (talle == null || v.talle === talle));
 
+  // La clienta elige color y talle (no se eligen solos, salvo que haya una sola opción)
   function ajustarSeleccion() {
     const s = st.sel;
     const deTipo = disponibles(s.tipo);
-    const colores = [...new Set(deTipo.map(v => v.color))];
-    if (s.color == null || colores.indexOf(s.color) < 0 || !deTipo.some(v => v.color === s.color && v.stock)) {
-      s.color = colores.find(c => deTipo.some(v => v.color === c && v.stock));
-      if (s.color === undefined) s.color = colores[0];
-    }
-    const deColor = disponibles(s.tipo, s.color);
-    const talles = [...new Set(deColor.map(v => v.talle))];
-    if (s.talle == null || talles.indexOf(s.talle) < 0 || !deColor.some(v => v.talle === s.talle && v.stock)) {
-      s.talle = talles.find(t => deColor.some(v => v.talle === t && v.stock));
-      if (s.talle === undefined) s.talle = talles[0];
-    }
+    const colores = [...new Set(deTipo.map(v => v.color))].filter(Boolean);
+    const talles = [...new Set(deTipo.map(v => v.talle))].filter(Boolean);
+    if (s.color != null && !hayStock(s.tipo, s.color, null)) s.color = null;
+    if (s.talle != null && !hayStock(s.tipo, null, s.talle)) s.talle = null;
+    // Si la combinación elegida no existe, se suelta el talle (lo último que cambió fue el color o el tipo)
+    if (s.color != null && s.talle != null && !hayStock(s.tipo, s.color, s.talle)) s.talle = null;
+    const colOk = colores.filter(c => hayStock(s.tipo, c, s.talle));
+    if (s.color == null && colOk.length === 1) s.color = colOk[0];
+    if (!colores.length) s.color = deTipo.length ? deTipo[0].color : null;
+    const talOk = talles.filter(t => hayStock(s.tipo, s.color, t));
+    if (s.talle == null && talOk.length === 1) s.talle = talOk[0];
+    if (!talles.length) s.talle = deTipo.length ? deTipo[0].talle : null;
   }
 
   function varianteSel() {
@@ -399,34 +405,39 @@
     $('#pColorSel').textContent = s.color ? nombreLindo(s.color) : '';
     // Colores que solo vienen en otra forma de compra (ej. solo en Pack x6): se muestran para que la clienta sepa que existen
     const otros = [...new Set(s.p.variantes.filter(x => x.tipo !== s.tipo && x.stock && x.color && colores.indexOf(x.color) < 0).map(x => x.color))];
+    // Gris: sin stock en esta cantidad (tachado) o no viene en el talle elegido (se puede tocar y cambia el talle)
     $('#pColores').innerHTML = colores.filter(Boolean).map(c => {
-      const hay = deTipo.some(x => x.color === c && x.stock);
-      return `<button type="button" class="pastilla" data-color="${esc(c)}" aria-pressed="${c === s.color}" ${hay ? '' : 'disabled aria-label="' + esc(nombreLindo(c)) + ', sin stock"'}><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}</button>`;
+      const hay = hayStock(s.tipo, c, null), combina = hayStock(s.tipo, c, s.talle);
+      return `<button type="button" class="pastilla ${hay && !combina ? 'no-combina' : ''}" data-color="${esc(c)}" aria-pressed="${c === s.color}" ${hay ? (combina ? '' : `title="No viene en talle ${esc(nombreLindo(s.talle))}"`) : 'disabled aria-label="' + esc(nombreLindo(c)) + ', sin stock"'}><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}</button>`;
     }).join('') + otros.map(c => {
       const t = s.p.variantes.find(x => x.color === c && x.stock && x.tipo !== s.tipo).tipo;
       return `<button type="button" class="pastilla otro-tipo" data-otro-tipo="${esc(t)}" data-color="${esc(c)}" title="Disponible en ${esc(nombreTipo(t))}"><i style="background:${colorCss(c)}"></i>${esc(nombreLindo(c))}<small>solo ${esc(t === 'Pack x6' ? 'pack x6' : nombreTipo(t).toLowerCase())}</small></button>`;
     }).join('');
 
-    const deColor = disponibles(s.tipo, s.color);
-    const talles = [...new Set(deColor.map(x => x.talle))];
+    const talles = [...new Set(deTipo.map(x => x.talle))];
     $('#grpTalle').hidden = !talles.some(Boolean);
     $('#pTalles').innerHTML = talles.filter(Boolean).map(t => {
-      const hay = deColor.some(x => x.talle === t && x.stock);
-      return `<button type="button" class="pastilla" data-talle="${esc(t)}" aria-pressed="${t === s.talle}" ${hay ? '' : 'disabled'}>${esc(nombreLindo(t))}</button>`;
+      const hay = hayStock(s.tipo, null, t), combina = hayStock(s.tipo, s.color, t);
+      return `<button type="button" class="pastilla ${hay && !combina ? 'no-combina' : ''}" data-talle="${esc(t)}" aria-pressed="${t === s.talle}" ${hay ? (combina ? '' : `title="No viene en ${esc(nombreLindo(s.color))}"`) : 'disabled'}>${esc(nombreLindo(t))}</button>`;
     }).join('');
-
-    $('#pPrecio').textContent = v ? fmt(v.precio) : fmt(s.p._res.desde);
-    const nPrendas = v ? prendasDe(v.tipo) : 1;
-    $('#pPorPrenda').textContent = nPrendas > 1 ? `(${fmt(v.precio / nPrendas)} por prenda)` : '';
-    const agotados = talles.filter(t => t && !deColor.some(x => x.talle === t && x.stock));
-    const quedan = talles.filter(t => t && deColor.some(x => x.talle === t && x.stock));
+    const deColor = disponibles(s.tipo, s.color);
+    const precios = deTipo.filter(x => x.stock).map(x => x.precio);
+    const precio = v ? v.precio : precios.length ? Math.min(...precios) : s.p._res.desde;
+    $('#pPrecio').textContent = fmt(precio);
+    const nPrendas = prendasDe(s.tipo);
+    $('#pPorPrenda').textContent = nPrendas > 1 ? `(${fmt(precio / nPrendas)} por prenda)` : '';
+    const tallesColor = [...new Set(deColor.map(x => x.talle))];
+    const agotados = s.color ? tallesColor.filter(t => t && !deColor.some(x => x.talle === t && x.stock)) : [];
+    const quedan = tallesColor.filter(t => t && deColor.some(x => x.talle === t && x.stock));
     $('#pUrgencia').hidden = !(agotados.length && quedan.length);
     if (agotados.length && quedan.length) $('#pUrgencia').textContent = `Se agotó el talle ${agotados.map(nombreLindo).join(', ')} en este color. ${quedan.length === 1 ? 'Queda solo el talle ' + nombreLindo(quedan[0]) : 'Quedan: ' + quedan.map(nombreLindo).join(', ')}.`;
     $('#cant').textContent = s.cant;
-    const ok = v && v.stock;
+    const ok = hayStock(s.tipo, null, null);
     $('#agregar').disabled = !ok;
     $('#agregar').textContent = ok ? 'Agregar al carrito' : 'Sin stock';
-    if (v && v.imagen) irAFoto(s.p.imagenes.indexOf(v.imagen));
+    $$('#dlgProducto .opcion.falta').forEach(g => { if ((g.id === 'grpColor' && s.color) || (g.id === 'grpTalle' && s.talle)) g.classList.remove('falta'); });
+    const conFoto = v && v.imagen ? v : s.color ? s.p.variantes.find(x => x.color === s.color && x.imagen && s.p.imagenes.indexOf(x.imagen) >= 0) : null;
+    if (conFoto) irAFoto(s.p.imagenes.indexOf(conFoto.imagen));
   }
 
   // Las fotos de la ficha pasan solas cada 4,5 s; se frena apenas la clienta toca o desliza
@@ -474,7 +485,18 @@
 
   function agregarAlCarrito() {
     const s = st.sel, v = varianteSel();
-    if (!v || !v.stock) return;
+    // Si falta elegir algo, se marca en rojo dónde y se avisa
+    const faltan = [];
+    if (!$('#grpColor').hidden && !s.color) faltan.push(['grpColor', 'el color']);
+    if (!$('#grpTalle').hidden && !s.talle) faltan.push(['grpTalle', 'el talle']);
+    if (faltan.length) {
+      faltan.forEach(([id]) => { const g = $('#' + id); g.classList.remove('falta'); void g.offsetWidth; g.classList.add('falta'); });
+      $('#' + faltan[0][0]).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const txt = 'Elegí ' + faltan.map(f => f[1]).join(' y ') + ' para agregarlo';
+      $('#pAviso').textContent = txt; tostada(txt);
+      return;
+    }
+    if (!v || !v.stock) { tostada('Esa combinación no tiene stock'); return; }
     const linea = st.carrito.find(l => l.id === v.id);
     if (linea) linea.cantidad = Math.min(20, linea.cantidad + s.cant);
     else st.carrito.push({ id: v.id, pid: s.p.id, cantidad: s.cant });
@@ -552,7 +574,7 @@
     $('#lineas').innerHTML = grupos.map(g => {
       const n = g.lineas.reduce((a, l) => a + l.cantidad, 0), tot = g.lineas.reduce((a, l) => a + l.v.precio * l.cantidad, 0);
       return `<li class="linea">
-        <img src="${esc(g.lineas[0].v.imagen || g.p.imagenes[0] || '')}" alt="" referrerpolicy="no-referrer">
+        <img src="${esc(g.lineas[0].v.imagen || mini(g.p))}" alt="" referrerpolicy="no-referrer">
         <div class="linea-info">
           <div class="linea-cabeza"><h3>${esc(g.p._nombre)}</h3><b>${fmt(tot)}</b></div>
           ${g.lineas.length > 1 ? `<p class="linea-total">${n} prendas</p>` : ''}
@@ -610,7 +632,7 @@
     lista = lista.slice(0, 4);
     caja.hidden = !lista.length;
     $('#lookLista').innerHTML = lista.map(x => `<a class="look-item" href="#p-${esc(x.id)}">
-        <img src="${esc(x.imagenes[0] || '')}" alt="" loading="lazy" referrerpolicy="no-referrer">
+        <img src="${esc(mini(x))}" alt="" loading="lazy" referrerpolicy="no-referrer">
         <span>${esc(x._nombre)}</span><b>${fmt(x._res.desde)}</b></a>`).join('');
   }
 
@@ -1065,8 +1087,8 @@
   $('#pTipos').addEventListener('click', e => { const b = e.target.closest('[data-tipo]'); if (!b) return; st.sel.tipo = b.dataset.tipo; ajustarSeleccion(); pintarSeleccion(); });
   $('#pColores').addEventListener('click', e => {
     const ot = e.target.closest('[data-otro-tipo]');
-    if (ot) { st.sel.tipo = ot.dataset.otroTipo; st.sel.color = ot.dataset.color; st.sel.talle = null; ajustarSeleccion(); pintarSeleccion(); tostada(`Ese color viene en ${nombreTipo(ot.dataset.otroTipo)}`); e.stopImmediatePropagation(); return; } const b = e.target.closest('[data-color]'); if (!b || b.disabled) return; st.sel.color = b.dataset.color; ajustarSeleccion(); pintarSeleccion(); });
-  $('#pTalles').addEventListener('click', e => { const b = e.target.closest('[data-talle]'); if (!b || b.disabled) return; st.sel.talle = b.dataset.talle; pintarSeleccion(); });
+    if (ot) { st.sel.tipo = ot.dataset.otroTipo; st.sel.color = ot.dataset.color; st.sel.talle = null; ajustarSeleccion(); pintarSeleccion(); tostada(`Ese color viene en ${nombreTipo(ot.dataset.otroTipo)}`); e.stopImmediatePropagation(); return; } const b = e.target.closest('[data-color]'); if (!b || b.disabled) return; st.sel.color = b.dataset.color; if (b.classList.contains('no-combina')) st.sel.talle = null; ajustarSeleccion(); pintarSeleccion(); });
+  $('#pTalles').addEventListener('click', e => { const b = e.target.closest('[data-talle]'); if (!b || b.disabled) return; st.sel.talle = b.dataset.talle; if (b.classList.contains('no-combina')) st.sel.color = null; ajustarSeleccion(); pintarSeleccion(); });
   $('#menos').addEventListener('click', () => { st.sel.cant = Math.max(1, st.sel.cant - 1); $('#cant').textContent = st.sel.cant; });
   $('#mas').addEventListener('click', () => { st.sel.cant = Math.min(20, st.sel.cant + 1); $('#cant').textContent = st.sel.cant; });
   $('#agregar').addEventListener('click', agregarAlCarrito);
