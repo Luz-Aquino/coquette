@@ -1024,3 +1024,7 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 }
 .galeria { position: relative; }
 .galeria-flecha, .galeria-cuenta { z-index: 5; }
+/* Fotos de la ficha siempre completas (sin recortar cabeza ni pies), sobre fondo suave */
+.galeria { background: linear-gradient(180deg, #F8E6EA, #F3DDE2); }
+.galeria-fotos img { object-fit: contain; background: transparent; }
+@media (min-width: 860px) { .galeria-fotos img { height: min(90vh, 100%); max-height: 90vh; } }
