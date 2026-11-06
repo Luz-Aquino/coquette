@@ -28,19 +28,21 @@ const ARMONY = {
 const COLUMNAS_ARMONY = [
   'Clave', 'ID Producto', 'Producto', 'Categoría', 'Color', 'Talle', 'Otras opciones',
   'Costo', 'Precio venta', 'Precio regular', 'En oferta', 'Stock', 'Stock restante',
-  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta', 'Aviso', 'Imágenes web'
+  'Imagen principal', 'Todas las imágenes', 'Descripción', 'Link', 'Actualizado', 'Tipo venta', 'Aviso', 'Imágenes web', 'Imágenes mini'
 ];
 
 // Versión liviana (~600 px) de cada foto, para que la tienda cargue rápido. Las originales quedan en "Todas las imágenes".
-let WEB_DE = {};
+let WEB_DE = {}, MINI_DE = {};
 function registrarWeb_(img) {
   if (!img || !img.src) return;
-  let mejor = '', ancho = Infinity;
+  let mejor = '', ancho = Infinity, mini = '', anchoMini = Infinity;
   String(img.srcset || '').split(',').forEach(par => {
     const m = par.trim().match(/^(\S+)\s+(\d+)w$/);
     if (m && Number(m[2]) >= 500 && Number(m[2]) < ancho) { mejor = m[1]; ancho = Number(m[2]); }
+    if (m && Number(m[2]) >= 300 && Number(m[2]) < anchoMini) { mini = m[1]; anchoMini = Number(m[2]); } // miniatura (~330 px) para grillas y panel
   });
   WEB_DE[img.src] = mejor || img.thumbnail || img.src;
+  MINI_DE[img.src] = mini || WEB_DE[img.src];
 }
 
 /* ===================== FUNCIÓN PRINCIPAL ===================== */
@@ -160,7 +162,7 @@ function armarFilas_(productos) {
   Logger.log(`Variantes: ${idsVariantes.length} (en lote: ${idsVariantes.length - faltantes.length}, de a una: ${faltantes.length})`);
 
   const filas = [];
-  WEB_DE = {};
+  WEB_DE = {}; MINI_DE = {};
   productos.forEach(p => {
     (p.images || []).forEach(registrarWeb_);
     const nombre = limpiarTexto_(p.name);
@@ -200,7 +202,8 @@ function armarFila_(clave, p, nombre, categoria, opc, datos, imagenes, descripci
     clave, p.id, nombre, categoria, opc.color, opc.talle, opc.otras,
     costo, '', regular, oferta, stock, restante, // el precio de venta se calcula en definirPrecios_
     imagenes[0] || '', imagenes.join(', '), descripcion, p.permalink, ahora, '', '',
-    imagenes.map(u => WEB_DE[u] || u).join(', ')
+    imagenes.map(u => WEB_DE[u] || u).join(', '),
+    imagenes.map(u => MINI_DE[u] || WEB_DE[u] || u).join(', ')
   ];
 }
 

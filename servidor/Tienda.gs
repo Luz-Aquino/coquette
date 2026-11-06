@@ -164,9 +164,20 @@ function leerVariantes_() {
     otras: String(f[i('Otras opciones')] || ''),
     dosPromos: esPromo3_(f[i('Otras opciones')]) && String(f[i('Tipo venta')]) === 'Pack x6',
     aviso: i('Aviso') >= 0 ? String(f[i('Aviso')] || '') : '',
-    imagenesWeb: i('Imágenes web') >= 0 ? String(f[i('Imágenes web')] || '') : ''
+    imagenesWeb: i('Imágenes web') >= 0 ? String(f[i('Imágenes web')] || '') : '',
+    imagenesMini: i('Imágenes mini') >= 0 ? String(f[i('Imágenes mini')] || '') : ''
   })).filter(v => v.clave && v.pid);
 }
+// Miniatura de cada foto liviana (para grillas, carrusel, carrito y panel)
+function minisDe_(vars) {
+  const m = {};
+  vars.forEach(v => {
+    const w = v.imagenesWeb.split(',').map(s => s.trim()), mi = v.imagenesMini.split(',').map(s => s.trim()), o = v.imagenes.split(',').map(s => s.trim());
+    o.forEach((u, k) => { if (mi[k]) { m[u] = mi[k]; if (w[k]) m[w[k]] = mi[k]; } });
+  });
+  return m;
+}
+const miniDe_ = (mapa, u) => /googleusercontent|drive\.google/.test(u) ? u.replace(/=w\d+$|=s0$/, '=w400') : (mapa[u] || u);
 
 // "Promo x3" de Armony que la tienda vende como Pack x6 (hay que comprar 2 promos)
 function esPromo3_(otras) { return /promo\s*x?\s*3|x\s*3\b/i.test(String(otras || '')); }
@@ -220,6 +231,8 @@ function armarCatalogo_(vars) {
       prods[id].variantes.forEach(v => { if (lista.indexOf(v.imagen) < 0) v.imagen = ''; }); // foto por color solo si está publicada
     }
   });
+  const minis = minisDe_(vars);
+  orden.forEach(id => { prods[id].minis = prods[id].imagenes.slice(0, 2).map(u => miniDe_(minis, u)); });
   return orden.map(id => prods[id]).filter(p => p.variantes.some(v => v.stock) && (!estados || estados[p.id] === 'Publicado'));
 }
 
@@ -291,7 +304,9 @@ function hojaFotos_() {
     h = ss.insertSheet(TIENDA.HOJA_FOTOS);
     h.setFrozenRows(1);
   }
-  h.getRange(1, 1, 1, COLUMNAS_FOTOS.length).setValues([COLUMNAS_FOTOS]).setFontWeight('bold');
+  // Solo escribe los encabezados si faltan (escribir en cada pedido hace todo más lento)
+  const enc = h.getRange(1, 1, 1, COLUMNAS_FOTOS.length).getValues()[0];
+  if (enc.join('|') !== COLUMNAS_FOTOS.join('|')) h.getRange(1, 1, 1, COLUMNAS_FOTOS.length).setValues([COLUMNAS_FOTOS]).setFontWeight('bold');
   return h;
 }
 // Selección de fotos a publicar (de Armony y propias), en orden. Cada foto: URL original de Armony o "drive:ID"
@@ -373,7 +388,8 @@ function adminFotos_(b) {
   if (b.op === 'fotos') {
     const webDe = {};
     vars.filter(v => v.pid === pid).forEach(v => { const o = v.imagenes.split(',').map(x => x.trim()), w = v.imagenesWeb.split(',').map(x => x.trim()); o.forEach((u, k) => { if (w[k]) webDe[u] = w[k]; }); });
-    return { pid, nombre: v0.producto, link: v0.link, armony: actual, armonyWeb: actual.map(u => webDe[u] || u),
+    const minis = minisDe_(vars.filter(v => v.pid === pid));
+    return { pid, nombre: v0.producto, link: v0.link, armony: actual, armonyWeb: actual.map(u => webDe[u] || u), armonyMini: actual.map(u => miniDe_(minis, u)),
       mias: m.fotos.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })),
       cambio: m.cambio, armonyAntes: m.cambio ? m.armony : [],
       seleccion: (m.seleccion || []).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0),
@@ -424,14 +440,18 @@ function adminFotos_(b) {
     let desc = String(b.descripcion == null ? '' : b.descripcion).replace(/\r/g, '').trim().slice(0, 3000);
     if (desc === String(v0.descripcion || '').trim()) desc = ''; // igual a la de Armony = usar la de Armony
     conLock_(() => {
-      guardarSeleccion_(pid, v0.producto, sel, actual);
-      const h = hojaFotos_(), fila = misFotosTodas_()[pid].fila;
-      h.getRange(fila, 8).setValue(desc);
+      // Una sola lectura y una sola escritura (más rápido)
+      const h = hojaFotos_(), f = misFotosTodas_()[pid];
+      let colores = JSON.stringify((f && f.colores) || {});
       if (b.colores && typeof b.colores === 'object') {
         const validos = {};
         vars.filter(v => v.pid === pid && v.color).forEach(v => { const a = String(b.colores[v.color] || '').trim().slice(0, 40); if (a && a !== v.color) validos[v.color] = a; });
-        h.getRange(fila, 9).setValue(JSON.stringify(validos));
+        colores = JSON.stringify(validos);
       }
+      if (f) {
+        h.getRange(f.fila, 7, 1, 3).setValues([[JSON.stringify(sel), desc, colores]]);
+        if (!f.armony.length) h.getRange(f.fila, 4).setValue(JSON.stringify(actual)); // para avisar si Armony cambia
+      } else h.appendRow([pid, v0.producto, '[]', JSON.stringify(actual), '', new Date(), JSON.stringify(sel), desc, colores]);
     });
     limpiarCacheCatalogo();
     return { ok: true, seleccion: sel, descripcionPropia: desc };
@@ -486,13 +506,15 @@ function listaPublicaciones_() {
   const h = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(TIENDA.HOJA_PUBLICACION);
   const extra = {};
   if (h && h.getLastRow() > 1) h.getRange(2, 1, h.getLastRow() - 1, COLUMNAS_PUBLICACION.length).getValues()
-    .forEach(f => { extra[String(f[0])] = { detectado: f[5] instanceof Date ? f[5].toISOString() : '', decidido: f[6] instanceof Date ? f[6].toISOString() : '' }; });
+    .forEach(f => { extra[String(f[0])] = { detectado: f[5] instanceof Date ? f[5].toISOString() : '', decidido: f[6] instanceof Date ? f[6].toISOString() : '',
+      revisado: String(f[3] || '') !== '' && String(f[3]) === String(f[7] || '') }; }); // revisado = Luz ya aprobó estos avisos
   const prods = {}, orden = [];
-  leerVariantes_().forEach(v => {
+  const vars = leerVariantes_(), minis = minisDe_(vars);
+  vars.forEach(v => {
     let p = prods[v.pid];
     if (!p) {
-      p = prods[v.pid] = { id: v.pid, nombre: v.producto, categoria: v.categoria, link: v.link, imagen: (v.imagenesWeb.split(',')[0] || '').trim() || v.imagen,
-        estado: estados[v.pid] || 'Publicado', detectado: (extra[v.pid] || {}).detectado || '', variantes: 0, conStock: 0, tipos: {}, avisos: [] };
+      p = prods[v.pid] = { id: v.pid, nombre: v.producto, categoria: v.categoria, link: v.link, imagen: miniDe_(minis, v.imagenes.split(',')[0].trim() || v.imagen),
+        estado: estados[v.pid] || 'Publicado', detectado: (extra[v.pid] || {}).detectado || '', revisado: !!(extra[v.pid] || {}).revisado, variantes: 0, conStock: 0, tipos: {}, avisos: [] };
       orden.push(v.pid);
     }
     p.variantes++;
