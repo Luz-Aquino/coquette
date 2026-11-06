@@ -430,12 +430,21 @@
   }
 
   // Las fotos de la ficha pasan solas cada 4,5 s; se frena apenas la clienta toca o desliza
-  let tPase;
+  let tPase, sobreFoto = false;
+  $('#pFotos').addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') sobreFoto = true; });
+  // Al sacar el mouse de la foto, vuelve a contar desde cero (no salta de golpe)
+  $('#pFotos').addEventListener('pointerleave', e => {
+    if (e.pointerType !== 'mouse') return;
+    sobreFoto = false;
+    if ($('#dlgProducto').open) iniciarPase($('#pFotos').children.length > 1);
+  });
   function iniciarPase(varias) {
     clearInterval(tPase);
     if (!varias || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     tPase = setInterval(() => {
       const c = $('#pFotos'); if (!$('#dlgProducto').open || !c.children.length) return clearInterval(tPase);
+      // Mientras el mouse está sobre la foto (mirando con zoom) o la foto está acercada, no se cambia
+      if (sobreFoto || c.querySelector('img.zoom') || c.classList.contains('con-zoom')) return;
       const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
       irAFoto((i + 1) % c.children.length);
     }, 4500);
@@ -447,7 +456,7 @@
     tVuelta = setTimeout(() => { if ($('#dlgProducto').open) iniciarPase($('#pFotos').children.length > 1); }, 8000);
   };
   ['pointerdown', 'wheel', 'touchstart'].forEach(ev => $('#dlgProducto .galeria').addEventListener(ev, frenarPase, { passive: true }));
-  $('#dlgProducto').addEventListener('close', () => { clearInterval(tPase); clearTimeout(tVuelta); });
+  $('#dlgProducto').addEventListener('close', () => { clearInterval(tPase); clearTimeout(tVuelta); sobreFoto = false; });
   // En la compu: flechas del teclado para pasar fotos
   document.addEventListener('keydown', e => {
     if (!$('#dlgProducto').open || /input|select|textarea/i.test(e.target.tagName)) return;
