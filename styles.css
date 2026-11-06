@@ -1016,3 +1016,11 @@ body.duena #btnCuenta { background: var(--bordo); color: #fff; border-color: var
 .var-det small { display: block; color: var(--gris); font-size: 12px; }
 .linea-variantes .quitar { width: 30px; height: 30px; border-radius: 50%; border: 0; background: #fff; color: var(--gris); font-size: 13px; text-decoration: none; cursor: pointer; padding: 0; }
 .linea-variantes .quitar:hover { color: var(--bordo); }
+
+/* Flechas de la galería bien visibles en la compu */
+@media (hover: hover) and (min-width: 860px) {
+  .galeria-flecha { width: 46px; height: 46px; font-size: 28px; background: #fff; opacity: .92; }
+  .galeria-flecha:hover { opacity: 1; transform: translateY(-50%) scale(1.06); }
+}
+.galeria { position: relative; }
+.galeria-flecha, .galeria-cuenta { z-index: 5; }

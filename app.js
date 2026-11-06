@@ -435,9 +435,22 @@
       irAFoto((i + 1) % c.children.length);
     }, 4500);
   }
-  const frenarPase = () => clearInterval(tPase);
+  // Si la clienta toca o desliza, se pausa; a los 8 s sin tocar nada vuelve a pasar solo
+  let tVuelta;
+  const frenarPase = () => {
+    clearInterval(tPase); clearTimeout(tVuelta);
+    tVuelta = setTimeout(() => { if ($('#dlgProducto').open) iniciarPase($('#pFotos').children.length > 1); }, 8000);
+  };
   ['pointerdown', 'wheel', 'touchstart'].forEach(ev => $('#dlgProducto .galeria').addEventListener(ev, frenarPase, { passive: true }));
-  $('#dlgProducto').addEventListener('close', frenarPase);
+  $('#dlgProducto').addEventListener('close', () => { clearInterval(tPase); clearTimeout(tVuelta); });
+  // En la compu: flechas del teclado para pasar fotos
+  document.addEventListener('keydown', e => {
+    if (!$('#dlgProducto').open || /input|select|textarea/i.test(e.target.tagName)) return;
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const c = $('#pFotos'), n = c.children.length; if (n < 2) return;
+    const i = Math.round(c.scrollLeft / Math.max(1, c.clientWidth));
+    frenarPase(); irAFoto((i + (e.key === 'ArrowRight' ? 1 : -1) + n) % n);
+  });
 
   function irAFoto(i) {
     if (i < 0) return;
