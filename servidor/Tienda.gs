@@ -37,7 +37,7 @@ const TIENDA = {
 };
 
 const COLUMNAS_PUBLICACION = ['ID Producto', 'Producto', 'Estado', 'Avisos', 'Link Armony', 'Detectado', 'Decidido'];
-const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado', 'Selección'];
+const COLUMNAS_FOTOS = ['ID Producto', 'Producto', 'Mis fotos', 'Fotos Armony al subir', 'Cambio en Armony', 'Actualizado', 'Selección', 'Descripción propia'];
 const COLUMNAS_CARRITOS = ['Email', 'Nombre', 'Items', 'Total', 'Actualizado', 'Avisado'];
 const ESTADOS_COMPRADOS = ['Pagado', 'Preparando', 'Enviado', 'Entregado'];
 
@@ -206,6 +206,7 @@ function armarCatalogo_(vars) {
   orden.forEach(id => {
     const f = mias[id];
     if (!f) return;
+    if (f.descripcion) prods[id].descripcion = f.descripcion.slice(0, 3000); // descripción escrita por Luz
     // 1) Si Luz eligió fotos (de Armony y/o propias), se publican esas en ese orden
     const elegidas = (f.seleccion || []).map(r => {
       if (/^drive:/.test(r)) { const d = r.slice(6); return f.fotos.some(x => x.id === d) ? urlDrive_(d, 'w900') : ''; }
@@ -304,7 +305,8 @@ function misFotosTodas_() {
   h.getRange(2, 1, h.getLastRow() - 1, ancho).getValues().forEach((f, i) => {
     if (f[0] === '') return;
     m[String(f[0])] = { fila: i + 2, fotos: leerJson_(f[2], []), armony: leerJson_(f[3], []),
-      cambio: f[4] instanceof Date ? f[4].toISOString() : String(f[4] || ''), seleccion: leerJson_(f[6], []) };
+      cambio: f[4] instanceof Date ? f[4].toISOString() : String(f[4] || ''), seleccion: leerJson_(f[6], []),
+      descripcion: String(f[7] || '') };
   });
   return m;
 }
@@ -365,7 +367,8 @@ function adminFotos_(b) {
     return { pid, nombre: v0.producto, link: v0.link, armony: actual, armonyWeb: actual.map(u => webDe[u] || u),
       mias: m.fotos.map(x => ({ id: x.id, url: urlDrive_(x.id, 's0'), mini: urlDrive_(x.id, 'w300') })),
       cambio: m.cambio, armonyAntes: m.cambio ? m.armony : [],
-      seleccion: (m.seleccion || []).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0) };
+      seleccion: (m.seleccion || []).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0),
+      descripcionArmony: v0.descripcion, descripcionPropia: m.descripcion || '' };
   }
   if (b.op === 'subirFoto') {
     const datos = String(b.datos || '').replace(/^data:image\/\w+;base64,/, '');
@@ -402,6 +405,18 @@ function adminFotos_(b) {
     const zip = Utilities.zip(blobs, `${base} - ${b.mias ? 'mis fotos' : 'Armony'}.zip`);
     const f = carpetaFotos_().createFile(zip);
     return { ok: true, url: 'https://drive.google.com/uc?export=download&id=' + f.getId(), cantidad: blobs.length };
+  }
+  if (b.op === 'guardarPublicacion') {
+    const sel = (Array.isArray(b.sel) ? b.sel : []).map(String).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0).slice(0, 20);
+    let desc = String(b.descripcion == null ? '' : b.descripcion).replace(/\r/g, '').trim().slice(0, 3000);
+    if (desc === String(v0.descripcion || '').trim()) desc = ''; // igual a la de Armony = usar la de Armony
+    conLock_(() => {
+      guardarSeleccion_(pid, v0.producto, sel, actual);
+      const h = hojaFotos_(), fila = misFotosTodas_()[pid].fila;
+      h.getRange(fila, 8).setValue(desc);
+    });
+    limpiarCacheCatalogo();
+    return { ok: true, seleccion: sel, descripcionPropia: desc };
   }
   if (b.op === 'seleccion') {
     const sel = (Array.isArray(b.sel) ? b.sel : []).map(String).filter(r => /^drive:/.test(r) ? m.fotos.some(x => 'drive:' + x.id === r) : actual.indexOf(r) >= 0).slice(0, 20);
@@ -816,7 +831,7 @@ function admin_(b) {
     mailCodigoEntrega_(f.datos);
     return { ok: true };
   }
-  if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas', 'zipFotos', 'seleccion'].indexOf(b.op) >= 0) return adminFotos_(b);
+  if (['fotos', 'subirFoto', 'ordenarFotos', 'fotosRevisadas', 'zipFotos', 'seleccion', 'guardarPublicacion'].indexOf(b.op) >= 0) return adminFotos_(b);
 
   if (b.op === 'publicar') {
     const id = String(b.pid || ''), estado = ['Publicado', 'Pendiente', 'Oculto'].indexOf(b.estado) >= 0 ? b.estado : '';

@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..700;1,6..96,400..700&family=Albert+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="preload" href="fonts/pinyon-script.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=202611061157">
-  <link rel="stylesheet" href="admin.css?v=202611061157">
+  <link rel="stylesheet" href="styles.css?v=202611061705">
+  <link rel="stylesheet" href="admin.css?v=202611061705">
 </head>
 <body class="admin">
   <header class="barra con-borde">
@@ -79,7 +79,7 @@
   <dialog class="modal fotos-dlg" id="dlgFotos" aria-labelledby="tituloFotos">
     <div class="modal-contenido">
       <button class="cerrar" data-cerrar aria-label="Cerrar">×</button>
-      <h2 id="tituloFotos">Fotos</h2>
+      <h2 id="tituloFotos">Editar publicación</h2>
       <p class="fotos-sub" id="fotosSub"></p>
       <div class="fotos-cambio" id="fotosCambio" hidden></div>
       <div class="fotos-eleccion" id="fotosEleccion">
@@ -87,6 +87,12 @@
         <p class="eleccion-estado" id="eleccionEstado"></p>
         <button class="boton secundario" id="eleccionLimpiar" hidden>Quitar selección</button>
       </div>
+      <section class="desc-seccion">
+        <div class="fotos-cabeza"><h3>Descripción</h3><button type="button" class="link-boton" id="descArmony">Usar la de Armony</button></div>
+        <p class="fotos-nota">Es el texto que ve la clienta al tocar "Descripción" en la ficha. Podés escribir la tuya.</p>
+        <textarea id="descTexto" rows="6" maxlength="3000" placeholder="Ej: Vestido de lino con mangas abullonadas, ideal para el verano…"></textarea>
+        <p class="fotos-nota" id="descEstado"></p>
+      </section>
 
       <section>
         <div class="fotos-cabeza">
@@ -112,6 +118,10 @@
         <p class="fotos-progreso" id="fotosProgreso" hidden></p>
         <div class="fotos-grilla grande" id="fotosMias"></div>
       </section>
+      <div class="guardar-barra" id="guardarBarra">
+        <span id="guardarEstado">Sin cambios</span>
+        <button class="boton principal" id="btnGuardarPub" disabled>Guardar cambios</button>
+      </div>
     </div>
     <div class="visor" id="visor" hidden>
       <button class="visor-cerrar" data-visor="cerrar" aria-label="Cerrar">×</button>
@@ -124,8 +134,8 @@
 
   <div class="tostada" id="tostada" role="status" aria-live="polite" hidden></div>
 
-  <script src="config.js?v=202611061157"></script>
+  <script src="config.js?v=202611061705"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="admin.js?v=202611061157"></script>
+  <script src="admin.js?v=202611061705"></script>
 </body>
 </html>

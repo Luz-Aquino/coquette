@@ -158,3 +158,15 @@ button.foto, .foto-ver { padding: 0; border: 0; cursor: zoom-in; width: 100%; he
 .pend-enc { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--linea); }
 .pend-enc small { display: block; color: var(--gris); }
 .pend-enc .boton { min-height: 40px; flex: 0 0 auto; }
+
+/* Editor: descripción y barra de guardar */
+.desc-seccion textarea { width: 100%; box-sizing: border-box; padding: 12px; border-radius: 12px; border: var(--borde); font: 15px/1.5 var(--sans); resize: vertical; min-height: 120px; }
+.desc-seccion textarea:focus { outline: none; border-color: var(--bordo); box-shadow: 0 0 0 3px rgba(122,31,61,.14); }
+.link-boton { border: 0; background: none; padding: 0; color: var(--bordo); text-decoration: underline; font: 500 14px var(--sans); cursor: pointer; }
+.guardar-barra { position: sticky; bottom: 0; z-index: 4; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 18px -24px 0; padding: 12px 24px; background: #fff; border-top: 1px solid #F1D3DA; box-shadow: 0 -8px 18px -14px rgba(92,18,41,.4); }
+.guardar-barra span { font-size: 14px; color: #2E7D4F; font-weight: 600; }
+.guardar-barra.sucia span { color: #B35C00; }
+.guardar-barra .boton { min-height: 44px; }
+.guardar-barra .boton:disabled { opacity: .5; cursor: default; }
+.fotos-dlg .modal-contenido { padding-bottom: 0; }

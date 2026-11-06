@@ -238,7 +238,7 @@
     const botones = [
       p.estado !== 'Publicado' ? `<button class="boton principal" data-pub="${esc(p.id)}" data-estado="Publicado">Publicar en la tienda</button>` : '',
       p.estado !== 'Oculto' ? `<button class="boton secundario" data-pub="${esc(p.id)}" data-estado="Oculto">${p.estado === 'Publicado' ? 'Ocultar de la tienda' : 'No publicar'}</button>` : '',
-      `<button class="boton secundario" data-fotos="${esc(p.id)}">📷 Fotos${p.elegidas ? ` (${p.elegidas} elegidas)` : p.misFotos ? ` (${p.misFotos} mías)` : ''}</button>`
+      `<button class="boton secundario" data-fotos="${esc(p.id)}">✏️ Editar fotos y descripción${p.elegidas ? ` (${p.elegidas} fotos)` : p.misFotos ? ` (${p.misFotos} mías)` : ''}</button>`
     ].join('');
     return `<article class="pub ${esc(p.estado)}">
         <img class="pub-foto" src="${esc(p.imagen)}" alt="" loading="lazy" referrerpolicy="no-referrer">
@@ -269,7 +269,12 @@
   /* ---------- Fotos propias ---------- */
   const fs = { pid: null, mias: [], armony: [], armonyWeb: [], visor: [], i: 0, sel: [] };
   const dlgF = $('#dlgFotos');
-  dlgF.addEventListener('click', e => { if (e.target === dlgF || (e.target.closest('[data-cerrar]') && !e.target.closest('.visor'))) dlgF.close(); });
+  function cerrarEditor() {
+    if (fs.sucio && !fs.avisoCerrar) { fs.avisoCerrar = true; tostada('Tenés cambios sin guardar. Tocá "Guardar cambios", o cerrá de nuevo para descartarlos.'); return; }
+    dlgF.close();
+  }
+  dlgF.addEventListener('click', e => { if (e.target === dlgF || (e.target.closest('[data-cerrar]') && !e.target.closest('.visor'))) cerrarEditor(); });
+  dlgF.addEventListener('cancel', e => { if (!$('#visor').hidden) return; if (fs.sucio && !fs.avisoCerrar) { e.preventDefault(); cerrarEditor(); } });
   dlgF.addEventListener('close', () => { $('#visor').hidden = true; if (fs.cambiado) cargarPublicaciones(true); fs.cambiado = false; });
   const circulo = ref => { const n = fs.sel.indexOf(ref); return `<button type="button" class="elegir ${n >= 0 ? 'si' : ''}" data-elegir="${esc(ref)}" aria-label="${n >= 0 ? 'Quitar de la publicación' : 'Elegir para publicar'}">${n >= 0 ? n + 1 : ''}</button>`; };
   const fotoHtml = (mini, i, tipo, ref) => `<div class="foto ${fs.sel.indexOf(ref) >= 0 ? 'elegida' : ''}"><button type="button" class="foto-ver" data-ver="${tipo}" data-i="${i}"><img src="${esc(mini)}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>${circulo(ref)}</div>`;
@@ -282,17 +287,32 @@
     $('#eleccionEstado').textContent = n ? `✔ Se publican ${n} foto(s) en el orden elegido.` : (fs.mias.length ? 'Sin selección: se publican todas tus fotos.' : 'Sin selección: se publican las fotos de Armony.');
     $('#eleccionLimpiar').hidden = !n;
   }
-  let tSel;
-  function guardarSeleccion() {
-    clearTimeout(tSel);
-    tSel = setTimeout(async () => {
-      try {
-        const r = await post({ action: 'admin', op: 'seleccion', idToken: st.token, pid: fs.pid, sel: fs.sel });
-        if (r.error) throw new Error(r.error);
-        fs.cambiado = true; tostada('Guardado: así se ve en la tienda.');
-      } catch (e) { tostada(e.message); }
-    }, 600);
+  // Cambios de fotos elegidas y descripción: se guardan juntos con "Guardar cambios"
+  function marcarCambios() {
+    const sucio = JSON.stringify(fs.sel) !== JSON.stringify(fs.selGuardada) || $('#descTexto').value.trim() !== fs.descGuardada.trim();
+    fs.sucio = sucio;
+    $('#btnGuardarPub').disabled = !sucio;
+    $('#guardarEstado').textContent = sucio ? '● Tenés cambios sin guardar' : 'Todo guardado ✔';
+    $('#guardarBarra').classList.toggle('sucia', sucio);
   }
+  const guardarSeleccion = marcarCambios;
+  $('#descTexto').addEventListener('input', () => { pintarDescEstado(); marcarCambios(); });
+  function pintarDescEstado() {
+    const t = $('#descTexto').value.trim();
+    $('#descEstado').textContent = !t ? 'Vacía: la ficha no muestra descripción.' : t === fs.descArmony.trim() ? 'Es la descripción de Armony.' : 'Es tu descripción.';
+  }
+  $('#descArmony').addEventListener('click', () => { $('#descTexto').value = fs.descArmony; pintarDescEstado(); marcarCambios(); });
+  $('#btnGuardarPub').addEventListener('click', async e => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = 'Guardando…';
+    try {
+      const r = await post({ action: 'admin', op: 'guardarPublicacion', idToken: st.token, pid: fs.pid, sel: fs.sel, descripcion: $('#descTexto').value });
+      if (r.error) throw new Error(r.error);
+      fs.sel = r.seleccion; fs.selGuardada = r.seleccion.slice(); fs.descGuardada = $('#descTexto').value;
+      fs.cambiado = true; fs.avisoCerrar = false;
+      tostada('Cambios guardados: ya se ven en la tienda.');
+    } catch (err) { tostada(err.message); }
+    b.textContent = 'Guardar cambios'; pintarArmony(); pintarMias(); pintarEleccion(); marcarCambios();
+  });
   dlgF.addEventListener('click', e => {
     const b = e.target.closest('[data-elegir]'); if (!b) return;
     const ref = b.dataset.elegir, k = fs.sel.indexOf(ref);
@@ -308,7 +328,10 @@
     try {
       const r = await post({ action: 'admin', op: 'fotos', idToken: st.token, pid });
       if (r.error) throw new Error(r.error);
-      Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony, sel: r.seleccion || [], nuevas: [] });
+      Object.assign(fs, { mias: r.mias, armony: r.armony, armonyWeb: r.armonyWeb || r.armony, sel: r.seleccion || [], nuevas: [],
+        selGuardada: (r.seleccion || []).slice(), descArmony: r.descripcionArmony || '', avisoCerrar: false });
+      fs.descGuardada = r.descripcionPropia || fs.descArmony;
+      $('#descTexto').value = fs.descGuardada; pintarDescEstado(); marcarCambios();
       $('#fotosLink').href = r.link;
       $('#nArmony').textContent = `(${r.armony.length})`;
       pintarArmony();
@@ -501,9 +524,9 @@
     if (b.op === 'publicar' || b.op === 'fotosRevisadas') return Promise.resolve({ ok: true });
     if (b.op === 'buscarCodigo' || b.op === 'confirmarEntrega') return Promise.resolve(String(b.codigo).toUpperCase() === 'BNB95T' ? { ok: true, pedido: { pedido: 'CQ261105-DEMO', cliente: 'Martina López', total: 102000, estado: 'Pagado', items: [{ cantidad: 3, nombre: 'CONJUNTO CARIBE LISO', detalle: 'Unidad · Negro · 2' }] } } : { error: 'No hay ningún pedido con ese código. Revisalo con la clienta.' });
     if (b.op === 'reenviarCodigo') return Promise.resolve({ ok: true });
-    if (b.op === 'seleccion') return Promise.resolve({ ok: true, seleccion: b.sel });
+    if (b.op === 'seleccion' || b.op === 'guardarPublicacion') return Promise.resolve({ ok: true, seleccion: b.sel, descripcionPropia: b.descripcion });
     if (b.op === 'zipFotos') return Promise.resolve({ error: 'En la demostración no se descargan fotos.' });
-    if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'] });
+    if (b.op === 'fotos') return Promise.resolve({ pid: b.pid, link: 'https://armonyfabricantes.com.ar/', armony: ['https://armonyfabricantes.com.ar/a.jpg', 'https://armonyfabricantes.com.ar/b.jpg', 'https://armonyfabricantes.com.ar/c.jpg'], mias: demo.mias || [], cambio: b.pid === '9002' ? new Date().toISOString() : '', armonyAntes: ['https://armonyfabricantes.com.ar/a.jpg'], descripcionArmony: 'Vestido corto de fibrana con breteles. Talle único.', descripcionPropia: '' });
     if (b.op === 'subirFoto') { demo.mias = (demo.mias || []).concat([{ id: 'd' + Date.now(), url: b.datos }]); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'ordenarFotos') { demo.mias = b.ids.map(id => (demo.mias || []).find(x => x.id === id)).filter(Boolean); return Promise.resolve({ ok: true, mias: demo.mias }); }
     if (b.op === 'publicaciones') {
